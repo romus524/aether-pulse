@@ -1,0 +1,6 @@
+{
+  "name": "AetherPulse Care",
+  "description": "Advanced ambient Wi-Fi radar healthcare monitoring and fall detection platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

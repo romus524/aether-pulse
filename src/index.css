@@ -1,0 +1,175 @@
+@import "tailwindcss";
+@import "./styles/glassMaterial.css";
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  html, body {
+    font-family: 'Sora', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    color: rgba(245, 243, 255, 0.92);
+  }
+
+  code, kbd, samp, pre, .font-mono, .font-tech {
+    font-family: 'IBM Plex Mono', monospace;
+  }
+}
+
+@layer utilities {
+  .font-sora {
+    font-family: 'Sora', sans-serif;
+  }
+
+  .font-manrope {
+    font-family: 'Manrope', 'Sora', sans-serif;
+  }
+
+  .font-space {
+    font-family: 'Space Grotesk', 'Sora', sans-serif;
+  }
+  
+  .font-tech {
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* Refined Ethereal Deep Background */
+  .ethereal-bg {
+    background-color: #060711;
+    background-image: 
+      radial-gradient(ellipse 60% 40% at 15% 15%, rgba(124, 56, 181, 0.18) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 35% at 85% 12%, rgba(216, 76, 255, 0.14) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 50% at 50% 50%, rgba(73, 232, 255, 0.08) 0%, transparent 65%),
+      radial-gradient(ellipse 60% 40% at 75% 85%, rgba(155, 92, 255, 0.14) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 40% at 20% 80%, rgba(52, 211, 153, 0.06) 0%, transparent 50%),
+      linear-gradient(to right, rgba(255, 255, 255, 0.012) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.012) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+    background-attachment: fixed;
+  }
+
+  .brand-wordmark {
+    font-family: 'Sora', sans-serif;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(245, 243, 255, 0.95);
+  }
+
+  .headline-eyebrow {
+    font-family: 'Sora', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    color: rgba(190, 183, 220, 0.6);
+    text-transform: uppercase;
+  }
+
+  .headline-title {
+    font-family: 'Sora', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    color: rgba(245, 243, 255, 0.96);
+  }
+
+  .telemetry-num {
+    font-family: 'Sora', sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.045em;
+    color: rgba(245, 243, 255, 0.98);
+  }
+
+  .telemetry-unit {
+    font-family: 'Sora', sans-serif;
+    font-weight: 500;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(210, 205, 235, 0.65);
+  }
+
+  .status-label {
+    font-family: 'Sora', sans-serif;
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+  }
+
+  /* Glass Header */
+  .glass-header {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.09) 0%,
+      rgba(35, 23, 75, 0.35) 45%,
+      rgba(15, 10, 36, 0.45) 100%
+    );
+    backdrop-filter: blur(28px) saturate(150%);
+    -webkit-backdrop-filter: blur(28px) saturate(150%);
+    border-bottom: 1px solid rgba(190, 175, 255, 0.18);
+    box-shadow: 0 16px 45px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  /* Glow Utilities */
+  .glow-purple {
+    box-shadow: 0 0 25px rgba(168, 85, 247, 0.35), inset 0 0 15px rgba(168, 85, 247, 0.12);
+  }
+
+  .glow-cyan {
+    box-shadow: 0 0 25px rgba(73, 232, 255, 0.35), inset 0 0 15px rgba(73, 232, 255, 0.12);
+  }
+
+  .glow-red {
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.4), inset 0 0 15px rgba(239, 68, 68, 0.15);
+  }
+
+  .glow-emerald {
+    box-shadow: 0 0 20px rgba(52, 211, 153, 0.35), inset 0 0 12px rgba(52, 211, 153, 0.12);
+  }
+
+  .glow-amber {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.35), inset 0 0 12px rgba(245, 158, 11, 0.12);
+  }
+}
+
+/* Custom Scrollbar for Sleek Terminal & Data Lists */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 85, 247, 0.45) rgba(12, 14, 28, 0.6);
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(12, 14, 28, 0.6);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(147, 51, 234, 0.45);
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(168, 85, 247, 0.75);
+}
+
+/* Pulse Keyframes */
+@keyframes softPulse {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.03); }
+}
+
+.animate-soft-pulse {
+  animation: softPulse 3s infinite ease-in-out;
+}

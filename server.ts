@@ -2,7 +2,7 @@ import express from 'express';
 import { INITIAL_PATIENTS } from './src/data/mockData';
 
 const app = express();
-const port = Number(process.env.API_PORT || 8787);
+const port = Number(process.env.PORT || process.env.API_PORT || 8787);
 
 app.use(express.json());
 app.use((_request, response, next) => {

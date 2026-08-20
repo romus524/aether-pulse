@@ -4,6 +4,8 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import '@n8n/chat/style.css';
+import { createChat } from '@n8n/chat';
 import Lenis from 'lenis';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -98,6 +100,27 @@ export default function App() {
   const [showPointCloud, setShowPointCloud] = useState<boolean>(true);
 
   // Initialize Lenis Smooth Scrolling engine
+    useEffect(() => {
+    createChat({
+      webhookUrl: 'https://romusking.app.n8n.cloud/webhook/2edb11ba-0824-48d4-a90c-c82a921444be',
+      mode: 'window',
+      showWelcomeScreen: true,
+      initialMessages: [
+        'Hello! 👋 How can I help you navigate or use our website today?'
+      ],
+      i18n: {
+        en: {
+          title: 'AI Assistant',
+          subtitle: 'Ask me anything',
+          footer: '',
+          getStarted: 'New Conversation',
+          inputPlaceholder: 'Type your message here...',
+        },
+      },
+    });
+  }, []);
+
+  
   useEffect(() => {
     const lenis = new Lenis({
       duration: 1.2,
@@ -222,6 +245,26 @@ export default function App() {
     setShowEmergencyModal(false);
   }, [selectedPatient, audioMuted]);
 
+  const handleOverrideAlert = useCallback(async () => {
+    try {
+      await fetch('http://localhost:8787/api/incidents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId: selectedPatient.id,
+          patientName: selectedPatient.name,
+          incidentType: 'false-positive',
+          severity: 'low',
+          description: 'Alert reviewed and marked as a false positive by the operator.',
+        }),
+      });
+    } catch (error) {
+      console.error('Unable to record false-positive review', error);
+    }
+
+    handleAcknowledgeAlert();
+  }, [handleAcknowledgeAlert, selectedPatient]);
+
   // Handler: Trigger Fall Event in Room
   const handleTriggerFall = useCallback((roomId: string) => {
     setPatients((prev) =>
@@ -336,7 +379,7 @@ export default function App() {
                 stages={fsmStages}
                 patient={selectedPatient}
                 onVerifyAlert={handleDispatchNurse}
-                onOverrideAlert={handleAcknowledgeAlert}
+                onOverrideAlert={handleOverrideAlert}
               />
             </div>
           </div>

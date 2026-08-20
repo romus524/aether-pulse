@@ -3,6 +3,12 @@ import { INITIAL_PATIENTS } from './src/data/mockData';
 
 const app = express();
 const port = Number(process.env.PORT || process.env.API_PORT || 8787);
+const settings = {
+  radarSensitivity: 'Ultra High (0.1m/s)',
+  fallVelocityThreshold: 2.4,
+  impactForceThreshold: 3.8,
+  alertEscalationEnabled: true,
+};
 
 app.use(express.json());
 app.use((_request, response, next) => {
@@ -18,6 +24,23 @@ app.get('/api/health', (_request, response) => {
 
 app.get('/api/patients', (_request, response) => {
   response.json({ patients: INITIAL_PATIENTS });
+});
+
+app.get('/api/settings', (_request, response) => {
+  response.json({ settings });
+});
+
+app.patch('/api/settings', (request, response) => {
+  const allowedKeys = Object.keys(settings) as Array<keyof typeof settings>;
+  const updates = Object.fromEntries(
+    allowedKeys
+      .filter((key) => request.body?.[key] !== undefined)
+      .map((key) => [key, request.body[key]])
+  );
+
+  Object.assign(settings, updates);
+
+  response.json({ updated: true, settings });
 });
 
 app.post('/api/alerts/escalate', (request, response) => {
@@ -57,7 +80,7 @@ app.post('/api/screen-share/sessions', (request, response) => {
     status: 'created',
     roomId: roomId || null,
     patientName: patientName || null,
-    shareUrl: `http://localhost:8787/screen-share/${sessionId}`,
+    shareUrl: `${request.protocol}://${request.get('host')}/screen-share/${sessionId}`,
     createdAt: createdAt.toISOString(),
     expiresAt: expiresAt.toISOString(),
   });

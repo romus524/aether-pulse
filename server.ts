@@ -141,7 +141,6 @@ app.post('/api/screen-share/sessions', async (request, response) => {
           exp: Math.floor(Date.now() / 1000) + 60 * 60,
           enable_chat: true,
           enable_screenshare: true,
-          enable_screen_share: true,
           start_video_off: false,
           start_audio_off: false,
         },

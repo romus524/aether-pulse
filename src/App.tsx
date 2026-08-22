@@ -98,6 +98,11 @@ export default function App() {
   const [showEmergencyModal, setShowEmergencyModal] = useState<boolean>(false);
   const [showSimModal, setShowSimModal] = useState<boolean>(false);
   const [showPointCloud, setShowPointCloud] = useState<boolean>(true);
+  const [shareStatus, setShareStatus] = useState<string>('');
+
+  const apiBaseUrl =
+    import.meta.env.VITE_API_URL ||
+    (window.location.hostname === 'localhost' ? 'http://localhost:8787' : '');
 
   // Initialize Lenis Smooth Scrolling engine
     useEffect(() => {
@@ -245,6 +250,40 @@ export default function App() {
     setShowEmergencyModal(false);
   }, [selectedPatient, audioMuted]);
 
+  const handleStartScreenShare = useCallback(async () => {
+    if (!selectedPatient) return;
+
+    const endpoint = `${apiBaseUrl}/api/screen-share/sessions`;
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId: selectedPatient.id,
+          patientName: selectedPatient.name,
+          requestedBy: 'Clinical Operator',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.shareUrl) {
+        const message = data?.message || 'Unable to create the live screen-share session.';
+        setShareStatus(message);
+        console.error('Screen-share creation failed', data);
+        return;
+      }
+
+      setShareStatus(`Live share started for ${selectedPatient.name}`);
+      window.open(data.shareUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to connect to the share service.';
+      setShareStatus(message);
+      console.error('Unable to start screen share', error);
+    }
+  }, [apiBaseUrl, selectedPatient]);
+
   const handleOverrideAlert = useCallback(async () => {
     try {
       await fetch('http://localhost:8787/api/incidents', {
@@ -357,6 +396,7 @@ export default function App() {
                 onDispatchNurse={handleDispatchNurse}
                 onAcknowledgeAlert={handleAcknowledgeAlert}
                 onTriggerIntercom={() => playTelemetryBeep('ack')}
+                onStartScreenShare={handleStartScreenShare}
                 showPointCloud={showPointCloud}
                 onTogglePointCloud={() => setShowPointCloud((prev) => !prev)}
               />
@@ -408,6 +448,12 @@ export default function App() {
           onDispatchNurse={handleDispatchNurse}
           onAcknowledgeAlert={handleAcknowledgeAlert}
         />
+      )}
+
+      {shareStatus && (
+        <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-xl border border-cyan-500/40 bg-slate-950/90 px-3 py-2 text-xs text-cyan-100 shadow-2xl backdrop-blur">
+          {shareStatus}
+        </div>
       )}
 
       {/* Simulation Drawer Modal */}

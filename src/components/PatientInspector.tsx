@@ -12,6 +12,7 @@ import {
   Sparkles, 
   Activity,
   Video,
+  MonitorUp,
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
@@ -22,6 +23,7 @@ interface PatientInspectorProps {
   onDispatchNurse: () => void;
   onAcknowledgeAlert: () => void;
   onTriggerIntercom: () => void;
+  onStartScreenShare: () => void;
   showPointCloud: boolean;
   onTogglePointCloud: () => void;
 }
@@ -31,6 +33,7 @@ export const PatientInspector: React.FC<PatientInspectorProps> = ({
   onDispatchNurse,
   onAcknowledgeAlert,
   onTriggerIntercom,
+  onStartScreenShare,
   showPointCloud,
   onTogglePointCloud,
 }) => {
@@ -204,6 +207,14 @@ export const PatientInspector: React.FC<PatientInspectorProps> = ({
           >
             <Phone className="w-3.5 h-3.5 text-cyan-400" />
             <span>BEDSIDE INTERCOM</span>
+          </button>
+
+          <button
+            onClick={onStartScreenShare}
+            className="glass-pill px-4 py-2 text-slate-200 font-sora text-xs font-semibold tracking-wide flex items-center gap-2 transition-all cursor-pointer"
+          >
+            <MonitorUp className="w-3.5 h-3.5 text-violet-400" />
+            <span>START SCREEN SHARE</span>
           </button>
 
           {isCritical && (

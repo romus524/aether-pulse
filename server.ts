@@ -115,6 +115,13 @@ app.post('/api/alerts/escalate', (request, response) => {
   });
 });
 
+app.get('/api/screen-share/sessions', (_request, response) => {
+  response.status(405).json({
+    error: 'method-not-allowed',
+    message: 'Use POST /api/screen-share/sessions to create a Daily room.',
+  });
+});
+
 app.post('/api/screen-share/sessions', async (request, response) => {
   const { roomId, patientName, requestedBy } = request.body ?? {};
 

@@ -25,6 +25,7 @@ import { EmergencyModal } from './components/EmergencyModal';
 import { SimulationControlsModal } from './components/SimulationControlsModal';
 import { LiveRoomNavigator } from './pages/LiveRoomNavigator';
 import { LoadingScreen } from './components/LoadingScreen';
+import ScreenShare from './components/ScreenShare';
 
 // Web Audio API Audio Synthesizer for High-Tech Medical Telemetry Alarms
 function playTelemetryBeep(type: 'critical' | 'warning' | 'ack') {
@@ -99,10 +100,15 @@ export default function App() {
   const [showSimModal, setShowSimModal] = useState<boolean>(false);
   const [showPointCloud, setShowPointCloud] = useState<boolean>(true);
   const [shareStatus, setShareStatus] = useState<string>('');
+  const [roomName, setRoomName] = useState<string | null>(null);
 
   const apiBaseUrl =
     import.meta.env.VITE_API_URL ||
     (window.location.hostname === 'localhost' ? 'http://localhost:8787' : '');
+
+  const handleCloseScreenShare = useCallback(() => {
+    setRoomName(null);
+  }, []);
 
   // Initialize Lenis Smooth Scrolling engine
     useEffect(() => {
@@ -268,7 +274,7 @@ export default function App() {
 
       const data = await response.json();
 
-      if (!response.ok || !data?.shareUrl) {
+      if (!response.ok || !data?.roomName) {
         const message = data?.message || 'Unable to create the live screen-share session.';
         setShareStatus(message);
         console.error('Screen-share creation failed', data);
@@ -276,7 +282,7 @@ export default function App() {
       }
 
       setShareStatus(`Live share started for ${selectedPatient.name}`);
-      window.open(data.shareUrl, '_blank', 'noopener,noreferrer');
+      setRoomName(data.roomName);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to connect to the share service.';
       setShareStatus(message);
@@ -453,6 +459,24 @@ export default function App() {
       {shareStatus && (
         <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-xl border border-cyan-500/40 bg-slate-950/90 px-3 py-2 text-xs text-cyan-100 shadow-2xl backdrop-blur">
           {shareStatus}
+        </div>
+      )}
+
+      {roomName && (
+        <div className="fixed inset-4 z-40 rounded-2xl border border-cyan-500/40 bg-slate-950/95 p-3 shadow-2xl backdrop-blur-xl lg:inset-8">
+          <div className="flex items-center justify-between pb-3">
+            <div>
+              <p className="text-xs font-semibold tracking-[0.16em] text-cyan-300">LIVE SCREEN SHARE</p>
+              <p className="mt-1 text-xs text-slate-400">{selectedPatient.name} · Room {selectedPatient.roomNumber}</p>
+            </div>
+            <button
+              onClick={handleCloseScreenShare}
+              className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-cyan-400 hover:text-white"
+            >
+              Close
+            </button>
+          </div>
+          <ScreenShare roomName={roomName} onClose={handleCloseScreenShare} />
         </div>
       )}
 

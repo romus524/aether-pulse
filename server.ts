@@ -6,7 +6,6 @@ import { INITIAL_PATIENTS } from './src/data/mockData';
 
 const app = express();
 const port = Number(process.env.PORT || process.env.API_PORT || 8787);
-const DAILY_API_KEY = process.env.DAILY_API_KEY;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const distPath = path.join(__dirname, 'dist');
@@ -17,8 +16,6 @@ const settings = {
   impactForceThreshold: 3.8,
   alertEscalationEnabled: true,
 };
-
-const getDailyBaseUrl = () => process.env.DAILY_BASE_URL || 'https://api.daily.co';
 
 app.use(express.json());
 app.use(express.static(distPath));
@@ -122,73 +119,21 @@ app.get('/api/screen-share/sessions', (_request, response) => {
   });
 });
 
-app.post('/api/screen-share/sessions', async (request, response) => {
+app.post('/api/screen-share/sessions', (request, response) => {
   const { roomId, patientName, requestedBy } = request.body ?? {};
+  const rand = Math.random().toString(36).slice(2, 10);
+  const roomName = `aether-${roomId || 'room'}-${Date.now()}-${rand}`;
 
-  if (!DAILY_API_KEY) {
-    response.status(501).json({
-      error: 'Daily.co not configured',
-      message: 'Set DAILY_API_KEY in the Render environment variables to enable real screen sharing.',
-    });
-    return;
-  }
-
-  const roomName = `aether-${String(roomId || 'room').replace(/[^a-zA-Z0-9-]/g, '-')}-${Date.now()}`;
-
-  try {
-    const dailyResponse = await fetch(`${getDailyBaseUrl()}/v1/rooms`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${DAILY_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: roomName,
-        properties: {
-          exp: Math.floor(Date.now() / 1000) + 60 * 60,
-          enable_chat: true,
-          enable_screenshare: true,
-          start_video_off: false,
-          start_audio_off: false,
-        },
-      }),
-    });
-
-    if (!dailyResponse.ok) {
-      const text = await dailyResponse.text();
-      response.status(502).json({
-        error: 'daily-api-error',
-        detail: text,
-      });
-      return;
-    }
-
-    const room = (await dailyResponse.json()) as {
-      name?: string;
-      url?: string;
-      id?: string;
-    };
-
-    const createdAt = new Date().toISOString();
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-    const shareUrl = room.url || `https://${room.name || roomName}.daily.co`;
-
-    response.status(201).json({
-      sessionId: room.id || room.name || roomName,
-      roomId: roomId || null,
-      patientName: patientName || null,
-      requestedBy: requestedBy || null,
-      status: 'created',
-      shareUrl,
-      createdAt,
-      expiresAt,
-    });
-  } catch (error) {
-    response.status(500).json({
-      error: 'screen-share-creation-failed',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
-  }
+  return response.status(201).json({
+    sessionId: roomName,
+    status: 'created',
+    roomId: roomId || null,
+    patientName: patientName || null,
+    requestedBy: requestedBy || null,
+    roomName,
+    domain: 'meet.jit.si',
+    shareUrl: `https://meet.jit.si/${roomName}`,
+  });
 });
 
 app.post('/api/notifications/staff', (request, response) => {

@@ -938,11 +938,11 @@ export const SimulatedEventVideoFeed: React.FC<SimulatedEventVideoFeedProps> = (
       </div>
 
       {/* 2. Main 70/30 Composition: Left 3D Viewport + Right Clinical Intelligence Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 border-b border-white/10">
+      <div className="grid grid-cols-1 lg:grid-cols-12 items-start gap-0 border-b border-white/10">
         {/* LEFT COLUMN: 3D Spatial Canvas (72% on lg screens) */}
-        <div className="lg:col-span-8 xl:col-span-8 flex flex-col justify-center bg-black relative border-b lg:border-b-0 lg:border-r border-white/10">
+        <div className="lg:col-span-8 xl:col-span-8 self-start h-fit flex flex-col bg-black relative border-b lg:border-b-0 lg:border-r border-white/10">
           <div
-            className="relative w-full aspect-video min-h-[260px] sm:min-h-[320px] max-h-[420px] flex items-center justify-center overflow-hidden cursor-ew-resize group"
+            className="relative w-full aspect-video min-h-[260px] sm:min-h-[320px] flex items-center justify-center overflow-hidden cursor-ew-resize group"
             data-lenis-prevent="true"
             onWheel={(e) => {
               const delta = e.deltaY * 0.005;
@@ -978,7 +978,7 @@ export const SimulatedEventVideoFeed: React.FC<SimulatedEventVideoFeedProps> = (
         </div>
 
         {/* RIGHT COLUMN: Clinical Intelligence Panel (28% on lg screens, perfectly contained) */}
-        <div className="lg:col-span-4 xl:col-span-4 p-4 sm:p-5 flex flex-col justify-between bg-slate-950/90 font-sora space-y-4">
+        <div className="lg:col-span-4 xl:col-span-4 self-start h-fit max-h-none lg:max-h-[405px] min-w-0 overflow-visible lg:overflow-y-auto custom-scrollbar p-3 sm:p-4 flex flex-col justify-start bg-slate-950/90 font-sora space-y-3">
           {/* SECTION A: PATIENT STATUS */}
           <div className="space-y-2">
             <div className="text-[10px] font-tech text-purple-300 font-bold uppercase tracking-wider flex items-center gap-1.5 border-b border-white/10 pb-1">

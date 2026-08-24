@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, Suspense, Component, ErrorInfo, ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { ContactShadows, OrbitControls } from '@react-three/drei';
+import { ContactShadows, Environment, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { PatientRecord } from '../types';
 import { 
@@ -365,6 +365,9 @@ export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({
             <color attach="background" args={['#020617']} />
 
             <hemisphereLight args={['#dbe7ff', '#141826', 0.55]} />
+            {quality !== 'performance' && (
+              <Environment preset="apartment" environmentIntensity={0.28} />
+            )}
             <ambientLight intensity={0.32} color="#c7d2fe" />
             <directionalLight
               position={[4.2, 7.2, 3.4]}

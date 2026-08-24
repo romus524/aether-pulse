@@ -53,15 +53,17 @@ export const DigitalTwinHuman: React.FC<DigitalTwinHumanProps> = ({
     cloned.scale.setScalar(1);
 
     const skin = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color('#d2ae8f'),
-      roughness: 0.46,
-      metalness: 0.035,
-      sheen: 0.42,
-      sheenRoughness: 0.38,
-      sheenColor: new THREE.Color('#f0d0b4'),
-      clearcoat: 0.08,
-      clearcoatRoughness: 0.55,
-      envMapIntensity: 0.7,
+      color: new THREE.Color('#c99470'),
+      roughness: 0.44,
+      metalness: 0.02,
+      sheen: 0.55,
+      sheenRoughness: 0.32,
+      sheenColor: new THREE.Color('#f3d2b5'),
+      clearcoat: 0.12,
+      clearcoatRoughness: 0.5,
+      envMapIntensity: 0.85,
+      emissive: new THREE.Color('#3b2418'),
+      emissiveIntensity: 0.045,
     });
 
     cloned.traverse((child) => {

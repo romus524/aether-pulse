@@ -1,5 +1,6 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { CSISpatialState } from './CSIAdapter';
 
@@ -13,6 +14,12 @@ export const SpatialEnvironment: React.FC<SpatialEnvironmentProps> = ({
 }) => {
   const pulseRingRef = useRef<THREE.Group>(null);
   const monitorGlowRef = useRef<THREE.PointLight>(null);
+  const floorAo = useTexture('/models/ground-ao.jpeg');
+
+  floorAo.wrapS = THREE.RepeatWrapping;
+  floorAo.wrapT = THREE.RepeatWrapping;
+  floorAo.repeat.set(2, 2);
+  floorAo.colorSpace = THREE.SRGBColorSpace;
 
   const isCritical = csiState.isCritical;
   const statusColor = isCritical ? '#ef4444' : '#38bdf8';
@@ -62,7 +69,12 @@ export const SpatialEnvironment: React.FC<SpatialEnvironmentProps> = ({
       {/* Dark Floor Plane */}
       <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[4.6, 4.6]} />
-        <meshStandardMaterial color="#060913" roughness={0.3} metalness={0.15} />
+        <meshStandardMaterial
+          color="#4b5568"
+          map={floorAo}
+          roughness={0.9}
+          metalness={0.05}
+        />
       </mesh>
 
       {/* Spatial Metric Grid */}

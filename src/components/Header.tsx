@@ -11,11 +11,13 @@ import {
   Layers, 
   Box, 
   ChevronDown, 
-  Check, 
-  Sparkles,
-  Activity
+  Check,
+  Activity,
+  ScrollText
 } from 'lucide-react';
 import aetherPulseLogo from '../assets/images/aether_pulse_logo_1786819504234.jpg';
+import { OperatorRole } from '../platform/agentProtocol';
+import { ROLE_LABELS } from '../platform/rbac';
 
 interface HeaderProps {
   criticalCount: number;
@@ -28,6 +30,9 @@ interface HeaderProps {
   onOpenSimModal: () => void;
   radarSensitivity: string;
   onChangeRadarSensitivity: (val: string) => void;
+  operatorRole: OperatorRole;
+  onChangeRole: (role: OperatorRole) => void;
+  onOpenActivityLog: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -40,6 +45,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSimModal,
   radarSensitivity,
   onChangeRadarSensitivity,
+  operatorRole,
+  onChangeRole,
+  onOpenActivityLog,
 }) => {
   const [timeStr, setTimeStr] = useState<string>('');
   const [dateStr, setDateStr] = useState<string>('');
@@ -300,6 +308,28 @@ export const Header: React.FC<HeaderProps> = ({
               <Volume2 className="w-4 h-4 animate-pulse text-cyan-300" />
             )}
           </button>
+
+          {/* AI activity + operator role */}
+          <button
+            type="button"
+            onClick={onOpenActivityLog}
+            className="p-2 rounded-xl border border-white/10 bg-slate-950/60 text-purple-200 hover:border-purple-400/40"
+            title="AI Activity Log"
+          >
+            <ScrollText className="w-4 h-4" />
+          </button>
+          <select
+            aria-label="Operator role"
+            value={operatorRole}
+            onChange={(event) => onChangeRole(event.target.value as OperatorRole)}
+            className="px-2 py-1.5 rounded-xl bg-slate-950/60 border border-white/10 text-[11px] text-slate-200"
+          >
+            {(Object.keys(ROLE_LABELS) as OperatorRole[]).map((role) => (
+              <option key={role} value={role}>
+                {ROLE_LABELS[role]}
+              </option>
+            ))}
+          </select>
 
           {/* Simulate Event Trigger Button */}
           <button

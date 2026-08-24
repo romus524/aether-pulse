@@ -3,6 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { PatientRecord } from '../types';
+import { UiCommand } from '../platform/agentProtocol';
 import { 
   Radio, 
   ShieldCheck, 
@@ -26,6 +27,7 @@ interface RoomCanvasProps {
   patient: PatientRecord;
   showRadarRings?: boolean;
   showPointCloud?: boolean;
+  twinCommand?: UiCommand | null;
 }
 
 // -------------------------------------------------------------
@@ -85,9 +87,11 @@ function CameraAnimator({ cameraPreset }: { cameraPreset: CameraPreset }) {
 // -------------------------------------------------------------
 export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({ 
   patient, 
-  showPointCloud: initialShowPointCloud = true 
+  showPointCloud: initialShowPointCloud = true,
+  twinCommand = null,
 }) => {
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>('iso');
+  const [playbackNotice, setPlaybackNotice] = useState<string | null>(null);
 
   // Visualization Layer Toggles
   const [showWavefronts, setShowWavefronts] = useState<boolean>(true);
@@ -116,6 +120,25 @@ export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({
     return getCSISpatialState(patient, time);
   }, [patient, time]);
 
+  useEffect(() => {
+    if (!twinCommand) return;
+    if (twinCommand.cameraPreset) setCameraPreset(twinCommand.cameraPreset);
+    if (twinCommand.showPointCloud !== undefined) setShowParticles(twinCommand.showPointCloud);
+    if (twinCommand.showWavefronts !== undefined) setShowWavefronts(twinCommand.showWavefronts);
+    if (twinCommand.showTrajectory !== undefined) setShowTrajectory(twinCommand.showTrajectory);
+    if (twinCommand.playback) {
+      const eventLabel = twinCommand.seekEvent ? ` around ${twinCommand.seekEvent}` : "";
+      const speed = twinCommand.playbackSpeed ? ` · ${twinCommand.playbackSpeed}x` : "";
+      setPlaybackNotice(
+        twinCommand.playback === "pause"
+          ? "Twin playback paused"
+          : twinCommand.playback === "live"
+            ? "Twin returned to live CSI"
+            : `Replaying recent movement${eventLabel}${speed}`,
+      );
+    }
+  }, [twinCommand]);
+
   const handleResetCamera = () => {
     setCameraPreset('iso');
   };
@@ -138,6 +161,11 @@ export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({
               3D CLINICAL TWIN
             </span>
           </div>
+          {playbackNotice && (
+            <div className="glass-panel backdrop-blur-xl px-3 py-1.5 rounded-full border border-purple-400/30 text-[10px] font-sora text-purple-100">
+              {playbackNotice}
+            </div>
+          )}
         </div>
 
         {/* Right Camera Presets & Layer Controls */}

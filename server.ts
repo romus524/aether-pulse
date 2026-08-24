@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
-import { INITIAL_PATIENTS } from './src/data/mockData';
+import { registerAgentRoutes } from './src/server/agentApi';
 
 const app = express();
 const port = Number(process.env.PORT || process.env.API_PORT || 8787);
@@ -10,19 +10,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const distPath = path.join(__dirname, 'dist');
 const indexHtmlPath = path.join(distPath, 'index.html');
-const settings = {
-  radarSensitivity: 'Ultra High (0.1m/s)',
-  fallVelocityThreshold: 2.4,
-  impactForceThreshold: 3.8,
-  alertEscalationEnabled: true,
-};
 
 app.use(express.json());
 app.use(express.static(distPath));
 app.use((_request, response, next) => {
   response.header('Access-Control-Allow-Origin', '*');
   response.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
-  response.header('Access-Control-Allow-Headers', 'Content-Type');
+  response.header('Access-Control-Allow-Headers', 'Content-Type, X-AetherPulse-Role, X-AetherPulse-User, X-AetherPulse-Name');
+  if (_request.method === 'OPTIONS') {
+    response.sendStatus(204);
+    return;
+  }
   next();
 });
 
@@ -37,8 +35,10 @@ app.get('/', (_request, response) => {
     status: 'ok',
     endpoints: [
       '/api/health',
-      '/api/patients',
-      '/api/incidents',
+      '/api/agent/command',
+      '/api/agent/audit',
+      '/api/agent/tools',
+      '/api/platform/snapshot',
       '/api/alerts/escalate',
       '/api/screen-share/sessions',
       '/api/notifications/staff',
@@ -65,26 +65,7 @@ app.get('/api/health', (_request, response) => {
   response.json({ status: 'ok' });
 });
 
-app.get('/api/patients', (_request, response) => {
-  response.json({ patients: INITIAL_PATIENTS });
-});
-
-app.get('/api/settings', (_request, response) => {
-  response.json({ settings });
-});
-
-app.patch('/api/settings', (request, response) => {
-  const allowedKeys = Object.keys(settings) as Array<keyof typeof settings>;
-  const updates = Object.fromEntries(
-    allowedKeys
-      .filter((key) => request.body?.[key] !== undefined)
-      .map((key) => [key, request.body[key]])
-  );
-
-  Object.assign(settings, updates);
-
-  response.json({ updated: true, settings });
-});
+registerAgentRoutes(app);
 
 app.post('/api/alerts/escalate', (request, response) => {
   const { roomId, patientName, severity, message } = request.body ?? {};

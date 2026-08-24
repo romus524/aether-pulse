@@ -25,6 +25,9 @@ import { LiveRoomNavigator } from './pages/LiveRoomNavigator';
 import { LoadingScreen } from './components/LoadingScreen';
 import ScreenShare from './components/ScreenShare';
 import { AetherPulseAgent } from './components/ai/AetherPulseAgent';
+import { AiActivityLog } from './components/ai/AiActivityLog';
+import { AgentAuditEntry, OperatorRole, PlatformSnapshot, UiCommand } from './platform/agentProtocol';
+import { fetchAgentAudit } from './lib/agentClient';
 
 // Web Audio API Audio Synthesizer for High-Tech Medical Telemetry Alarms
 function playTelemetryBeep(type: 'critical' | 'warning' | 'ack') {
@@ -100,6 +103,10 @@ export default function App() {
   const [showPointCloud, setShowPointCloud] = useState<boolean>(true);
   const [shareStatus, setShareStatus] = useState<string>('');
   const [roomName, setRoomName] = useState<string | null>(null);
+  const [operatorRole, setOperatorRole] = useState<OperatorRole>('administrator');
+  const [twinCommand, setTwinCommand] = useState<UiCommand | null>(null);
+  const [showActivityLog, setShowActivityLog] = useState(false);
+  const [activityLog, setActivityLog] = useState<AgentAuditEntry[]>([]);
 
   const apiBaseUrl =
     import.meta.env.VITE_API_URL ||
@@ -339,6 +346,29 @@ export default function App() {
     setShowEmergencyModal(false);
   }, []);
 
+  const applySnapshot = useCallback((snapshot: PlatformSnapshot) => {
+    setPatients(snapshot.patients);
+    setRadarSensitivity(snapshot.settings.radarSensitivity);
+    setActivityLog(snapshot.audit);
+  }, []);
+
+  const applyUiCommands = useCallback((commands: UiCommand[]) => {
+    commands.forEach((command) => {
+      if (command.view) setActiveView(command.view);
+      if (command.selectRoomId) setSelectedRoomId(command.selectRoomId);
+      if (command.showPointCloud !== undefined) setShowPointCloud(command.showPointCloud);
+      if (command.openEmergency) setShowEmergencyModal(true);
+      if (command.radarSensitivity) setRadarSensitivity(command.radarSensitivity);
+      setTwinCommand({ ...command });
+    });
+  }, []);
+
+  const refreshActivityLog = useCallback(async () => {
+    const entries = await fetchAgentAudit();
+    setActivityLog(entries);
+    setShowActivityLog(true);
+  }, []);
+
   return (
     <div className="min-h-screen ethereal-bg text-slate-100 font-sans grid-pattern flex flex-col selection:bg-cyan-500 selection:text-slate-950">
       {/* Top Command Header */}
@@ -353,12 +383,15 @@ export default function App() {
         onOpenSimModal={() => setShowSimModal(true)}
         radarSensitivity={radarSensitivity}
         onChangeRadarSensitivity={(val) => setRadarSensitivity(val)}
+        operatorRole={operatorRole}
+        onChangeRole={setOperatorRole}
+        onOpenActivityLog={() => void refreshActivityLog()}
       />
 
       {/* Main Container View Switcher */}
       {activeView === 'navigator' ? (
         <main className="flex-1 max-w-[1920px] mx-auto w-full">
-          <LiveRoomNavigator />
+          <LiveRoomNavigator patients={patients} />
         </main>
       ) : (
         <main className="flex-1 px-4 lg:px-6 pb-6 space-y-4 max-w-[1920px] mx-auto w-full">
@@ -389,6 +422,7 @@ export default function App() {
               <RoomCanvas3D
                 patient={selectedPatient}
                 showPointCloud={showPointCloud}
+                twinCommand={twinCommand}
               />
             </div>
 
@@ -470,7 +504,20 @@ export default function App() {
         />
       )}
 
-      {!isLoading && <AetherPulseAgent />}
+      {showActivityLog && (
+        <AiActivityLog entries={activityLog} onClose={() => setShowActivityLog(false)} />
+      )}
+
+      {!isLoading && (
+        <AetherPulseAgent
+          role={operatorRole}
+          userId={`op-${operatorRole}`}
+          userName="Clinical Operator"
+          selectedRoomId={selectedRoomId}
+          onSnapshot={applySnapshot}
+          onUiCommands={applyUiCommands}
+        />
+      )}
     </div>
   );
 }

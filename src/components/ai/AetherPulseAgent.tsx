@@ -1,165 +1,174 @@
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Brain, Send, X } from "lucide-react";
+import { Brain, Check, ChevronDown, Send, X } from "lucide-react";
 import { AetherPulseMark } from "./AetherPulseMark";
-import { getN8nSessionId, sendN8nMessage } from "../../lib/n8nChat";
+import { getN8nSessionId } from "../../lib/n8nChat";
+import { runAgentCommand } from "../../lib/agentClient";
+import {
+  AgentCommandResponse,
+  AgentPhase,
+  AgentStep,
+  OperatorRole,
+  PlatformSnapshot,
+  UiCommand,
+} from "../../platform/agentProtocol";
 import "./aetherAgent.css";
 
-type AgentPhase = "idle" | "thinking" | "processing" | "executing" | "completed";
 type ClinicalTone = "quiet" | "clinical" | "emergency";
-type Role = "user" | "agent";
+type ChatRole = "user" | "agent";
 
 interface ChatMessage {
   id: string;
-  role: Role;
+  role: ChatRole;
   text: string;
   at: number;
   tone: ClinicalTone;
   executing?: boolean;
+  steps?: AgentStep[];
+  confirmationId?: string;
+  auditId?: string;
 }
 
 const PHASE_STATUS: Record<AgentPhase, string> = {
   idle: "Standing by",
   thinking: "Thinking",
-  processing: "Processing",
+  planning: "Planning",
+  waiting_approval: "Waiting for approval",
   executing: "Executing",
+  verifying: "Verifying",
   completed: "Completed",
+  failed: "Failed",
 };
+
+interface AetherPulseAgentProps {
+  role: OperatorRole;
+  userId: string;
+  userName: string;
+  selectedRoomId?: string;
+  onSnapshot?: (snapshot: PlatformSnapshot) => void;
+  onUiCommands?: (commands: UiCommand[]) => void;
+}
 
 function classifyTone(text: string): ClinicalTone {
   const value = text.toLowerCase();
-  if (
-    /\b(emergency|code blue|cardiac arrest|unresponsive|critical fall|immediate dispatch)\b/.test(value)
-  ) {
-    return "emergency";
-  }
-  if (
-    /\b(fall[- ]?risk|fall detected|bed[- ]?exit|wandering|apnea|respiratory|abnormal movement|syncope)\b/.test(
-      value,
-    )
-  ) {
-    return "clinical";
-  }
+  if (/\b(emergency|code blue|critical fall|immediate dispatch)\b/.test(value)) return "emergency";
+  if (/\b(fall[- ]?risk|bed[- ]?exit|apnea|respiratory|abnormal movement)\b/.test(value)) return "clinical";
   return "quiet";
 }
 
 function formatClock(ts: number): string {
-  return new Date(ts).toLocaleTimeString("en-US", {
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return new Date(ts).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" });
 }
 
-export function AetherPulseAgent() {
+function applyResult(
+  data: AgentCommandResponse,
+  onSnapshot?: (snapshot: PlatformSnapshot) => void,
+  onUiCommands?: (commands: UiCommand[]) => void,
+) {
+  if (data.snapshot) onSnapshot?.(data.snapshot);
+  if (data.uiCommands?.length) onUiCommands?.(data.uiCommands);
+}
+
+export function AetherPulseAgent({ role, userId, userName, selectedRoomId, onSnapshot, onUiCommands }: AetherPulseAgentProps) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [phase, setPhase] = useState<AgentPhase>("idle");
+  const [steps, setSteps] = useState<AgentStep[]>([]);
+  const [showSteps, setShowSteps] = useState(true);
+  const [pendingConfirm, setPendingConfirm] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       id: "welcome",
       role: "agent",
-      text: "AetherPulse AI online. Ask in natural language — I can review CSI movement, bed-exit risk, respiratory signals, and ward workflow.",
+      text: "AetherPulse AI is your operational assistant. I can create patients, assign wards and beds, change supported settings, run CSI and digital-twin commands, and manage alerts — only with your permissions, confirmation for sensitive changes, and verification from the live system.",
       at: Date.now(),
       tone: "quiet",
     },
   ]);
   const threadRef = useRef<HTMLDivElement>(null);
-  const timers = useRef<number[]>([]);
-
   const sessionId = useMemo(() => getN8nSessionId(), []);
-  const busy = phase === "thinking" || phase === "processing" || phase === "executing";
+  const busy = ["thinking", "planning", "executing", "verifying"].includes(phase);
 
   useEffect(() => {
-    return () => {
-      timers.current.forEach((id) => window.clearTimeout(id));
-    };
-  }, []);
+    threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, open, steps, phase]);
 
-  useEffect(() => {
-    const el = threadRef.current;
-    if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [messages, open]);
-
-  const schedulePhase = (next: AgentPhase, delay: number) => {
-    const id = window.setTimeout(() => setPhase(next), delay);
-    timers.current.push(id);
+  const pushAgent = (text: string, extra?: Partial<ChatMessage>) => {
+    setMessages((prev) => prev.concat({ id: crypto.randomUUID(), role: "agent", text, at: Date.now(), tone: classifyTone(text), ...extra }));
   };
 
-  const send = async () => {
-    const text = input.trim();
-    if (!text || busy) return;
+  const handleResponse = (data: AgentCommandResponse) => {
+    setSteps(data.steps || []);
+    if (data.status === "awaiting_confirmation") {
+      setPhase("waiting_approval");
+      setPendingConfirm(data.confirmationId || null);
+      pushAgent(data.explanation || data.summary, { steps: data.steps, confirmationId: data.confirmationId });
+      return;
+    }
+    if (data.status === "needs_input") {
+      setPhase("idle");
+      setPendingConfirm(null);
+      pushAgent(data.summary + (data.questions?.length ? `\n\n${data.questions.join("\n")}` : ""), { steps: data.steps });
+      return;
+    }
+    applyResult(data, onSnapshot, onUiCommands);
+    setPendingConfirm(null);
+    setPhase(data.status === "completed" ? "verifying" : data.status === "failed" ? "failed" : "completed");
+    const footer = data.auditId ? `\n\nAudit ID: ${data.auditId}` : "";
+    pushAgent(`${data.summary}${footer}`, { steps: data.steps, auditId: data.auditId });
+    window.setTimeout(() => setPhase(data.status === "completed" ? "completed" : "idle"), 500);
+    window.setTimeout(() => setPhase("idle"), 1800);
+  };
 
-    timers.current.forEach((id) => window.clearTimeout(id));
-    timers.current = [];
-
-    const userTone = classifyTone(text);
+  const send = async (utterance: string, confirmation?: { confirmationId: string; approved: boolean }) => {
+    const text = utterance.trim();
+    if ((!text && !confirmation) || busy) return;
     setInput("");
     setPhase("thinking");
-    setMessages((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), role: "user", text, at: Date.now(), tone: userTone },
-      {
-        id: "pending",
-        role: "agent",
-        text: "Analyzing recent CSI movement data…",
-        at: Date.now(),
-        tone: "quiet",
-        executing: true,
-      },
-    ]);
-    schedulePhase("processing", 420);
-    schedulePhase("executing", 980);
+    if (!confirmation) {
+      setMessages((prev) =>
+        prev.concat({
+          id: crypto.randomUUID(),
+          role: "user",
+          text,
+          at: Date.now(),
+          tone: classifyTone(text),
+        }),
+      );
+    }
+    window.setTimeout(() => setPhase("planning"), 220);
 
     try {
-      const reply = await sendN8nMessage(text, sessionId);
-      timers.current.forEach((id) => window.clearTimeout(id));
-      timers.current = [];
-      setPhase("executing");
-      await new Promise((resolve) => window.setTimeout(resolve, 280));
-      const tone = classifyTone(`${text}\n${reply}`);
-      setPhase("completed");
-      setMessages((prev) =>
-        prev
-          .filter((msg) => msg.id !== "pending")
-          .concat({
-            id: crypto.randomUUID(),
-            role: "agent",
-            text: reply,
-            at: Date.now(),
-            tone,
-          }),
-      );
-      schedulePhase("idle", 1600);
+      setPhase(confirmation ? "executing" : "planning");
+      const data = await runAgentCommand({
+        utterance: text || "confirm",
+        role,
+        userId,
+        userName,
+        sessionId,
+        selectedRoomId,
+        confirmationId: confirmation?.confirmationId,
+        approved: confirmation?.approved,
+      });
+      if (!confirmation && data.status !== "awaiting_confirmation") setPhase("executing");
+      handleResponse(data);
     } catch (error) {
-      timers.current.forEach((id) => window.clearTimeout(id));
-      timers.current = [];
+      setPhase("failed");
       const detail = error instanceof Error ? error.message : "Unknown error";
-      setPhase("idle");
-      setMessages((prev) =>
-        prev
-          .filter((msg) => msg.id !== "pending")
-          .concat({
-            id: crypto.randomUUID(),
-            role: "agent",
-            text: `The n8n agent could not complete that request (${detail}). The command was not executed.`,
-            at: Date.now(),
-            tone: "quiet",
-          }),
-      );
+      pushAgent(`The request could not be completed because the automation service is unavailable (${detail}). No platform change was claimed.`);
+      window.setTimeout(() => setPhase("idle"), 1200);
     }
   };
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
-    void send();
+    void send(input);
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      void send();
+      void send(input);
     }
   };
 
@@ -196,12 +205,12 @@ export function AetherPulseAgent() {
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
           >
             <header className="ap-ai-header">
-              <AetherPulseMark size="lg" active={busy || phase === "completed"} />
+              <AetherPulseMark size="lg" active={busy || phase === "waiting_approval"} />
               <div className="ap-ai-identity">
                 <h2>AetherPulse AI</h2>
-                <p>Healthcare operations agent · n8n</p>
+                <p>Operational assistant · inherits {role} permissions</p>
                 <div className="ap-ai-status">
-                  <span className={`ap-ai-status-dot${busy ? " is-busy" : ""}`} />
+                  <span className={`ap-ai-status-dot${busy || phase === "waiting_approval" ? " is-busy" : ""}`} />
                   {PHASE_STATUS[phase]}
                 </div>
               </div>
@@ -209,6 +218,28 @@ export function AetherPulseAgent() {
                 <X size={16} />
               </button>
             </header>
+
+            {steps.length > 0 && (
+              <div className="ap-ai-exec-panel">
+                <button type="button" className="ap-ai-exec-toggle" onClick={() => setShowSteps((v) => !v)}>
+                  <span>Execution</span>
+                  <ChevronDown size={14} style={{ transform: showSteps ? "rotate(180deg)" : undefined }} />
+                </button>
+                {showSteps && (
+                  <ul>
+                    {steps.map((step) => (
+                      <li key={step.id} className={`is-${step.status}`}>
+                        <span>{step.status === "done" ? "✓" : step.status === "running" ? "⟳" : step.status === "blocked" ? "✕" : "·"}</span>
+                        <div>
+                          <strong>{step.label}</strong>
+                          {step.result && <em>{step.result}</em>}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
 
             <div className="ap-ai-thread" ref={threadRef}>
               {messages.map((message) => (
@@ -222,13 +253,16 @@ export function AetherPulseAgent() {
                     <span>{message.role === "user" ? "You" : "AetherPulse AI"}</span>
                     <time>{formatClock(message.at)}</time>
                   </header>
-                  {message.executing ? (
-                    <div className="ap-ai-exec">
-                      <i />
-                      <span>{message.text}</span>
+                  <p>{message.text}</p>
+                  {message.confirmationId && pendingConfirm === message.confirmationId && (
+                    <div className="ap-ai-confirm">
+                      <button type="button" onClick={() => void send("approved", { confirmationId: message.confirmationId!, approved: true })}>
+                        Confirm and execute
+                      </button>
+                      <button type="button" className="is-ghost" onClick={() => void send("rejected", { confirmationId: message.confirmationId!, approved: false })}>
+                        Cancel
+                      </button>
                     </div>
-                  ) : (
-                    <p>{message.text}</p>
                   )}
                 </article>
               ))}
@@ -239,15 +273,14 @@ export function AetherPulseAgent() {
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={onKeyDown}
-                placeholder="Ask AetherPulse… e.g. Analyze the latest patient movement pattern."
+                placeholder="e.g. Add Jane Doe to Ward 3 and enable CSI monitoring."
                 rows={2}
                 disabled={busy}
               />
               <button className="ap-ai-send" type="submit" disabled={busy || !input.trim()} aria-label="Send command">
-                {busy ? <Brain size={16} /> : <Send size={16} />}
+                {busy ? <Brain size={16} /> : phase === "completed" ? <Check size={16} /> : <Send size={16} />}
               </button>
             </form>
-
           </motion.section>
         )}
       </AnimatePresence>

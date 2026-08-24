@@ -8,7 +8,10 @@ import { Radio } from 'lucide-react';
 
 export const MapLegend: React.FC = () => {
   return (
-    <div className="absolute bottom-4 left-4 z-20 glass-panel px-3.5 py-2 rounded-2xl border border-white/10 shadow-2xl backdrop-blur-xl flex flex-wrap items-center gap-3 text-[10px] font-sora">
+    <div
+      data-map-ui="legend"
+      className="absolute bottom-4 left-4 z-20 glass-panel px-3.5 py-2 rounded-2xl border border-white/10 shadow-2xl backdrop-blur-xl flex flex-wrap items-center gap-3 text-[10px] font-sora"
+    >
       <div className="flex items-center gap-1.5 text-emerald-300 font-semibold">
         <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 glow-emerald" />
         <span>NORMAL</span>

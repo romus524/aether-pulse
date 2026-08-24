@@ -174,6 +174,10 @@ export function AetherPulseAgent() {
 
     try {
       const reply = await sendN8nMessage(text, sessionId);
+      timers.current.forEach((id) => window.clearTimeout(id));
+      timers.current = [];
+      setPhase("executing");
+      await new Promise((resolve) => window.setTimeout(resolve, 280));
       const tone = classifyTone(`${text}\n${reply}`);
       setPhase("completed");
       pushTimeline("n8n workflow returned a result");
@@ -194,6 +198,8 @@ export function AetherPulseAgent() {
       );
       window.setTimeout(() => setPhase("idle"), 1600);
     } catch (error) {
+      timers.current.forEach((id) => window.clearTimeout(id));
+      timers.current = [];
       const detail = error instanceof Error ? error.message : "Unknown error";
       setPhase("idle");
       pushTimeline("Workflow request failed");

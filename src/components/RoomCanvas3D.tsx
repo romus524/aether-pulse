@@ -9,7 +9,6 @@ import {
   ShieldCheck, 
   Compass, 
   Box, 
-  Eye, 
   Activity, 
   Wind, 
   Heart, 
@@ -87,18 +86,16 @@ function CameraAnimator({ cameraPreset }: { cameraPreset: CameraPreset }) {
 // -------------------------------------------------------------
 export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({ 
   patient, 
-  showPointCloud: initialShowPointCloud = true,
+  showPointCloud: _initialShowPointCloud = true,
   twinCommand = null,
 }) => {
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>('iso');
   const [playbackNotice, setPlaybackNotice] = useState<string | null>(null);
 
-  // Visualization Layer Toggles
   const [showWavefronts, setShowWavefronts] = useState<boolean>(true);
-  const [showParticles, setShowParticles] = useState<boolean>(initialShowPointCloud);
+  const [showParticles, setShowParticles] = useState<boolean>(false);
   const [showTrajectory, setShowTrajectory] = useState<boolean>(true);
-  const [showDebugSkeleton, setShowDebugSkeleton] = useState<boolean>(false);
-  const [quality, setQuality] = useState<'high' | 'balanced' | 'performance'>('high');
+  const [quality] = useState<'high' | 'balanced' | 'performance'>('balanced');
   const [showInspectorCard, setShowInspectorCard] = useState<boolean>(true);
 
   // Time state for continuous real-time CSI synthesis
@@ -201,28 +198,15 @@ export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({
             >
               <Activity className="w-3.5 h-3.5" />
             </button>
-
-            <button
-              onClick={() => setShowDebugSkeleton(!showDebugSkeleton)}
-              title="Toggle Clinical Skeletal Alignment"
-              className={`p-1.5 rounded-full text-[10px] transition-all cursor-pointer ${
-                showDebugSkeleton ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Eye className="w-3.5 h-3.5" />
-            </button>
           </div>
 
           {/* Camera View Angle Selector */}
           <div className="flex items-center gap-1 glass-panel backdrop-blur-xl p-1 rounded-full border border-white/10 shadow-lg">
             {(
               [
-                { id: 'iso', label: '3D ISO' },
-                { id: 'front', label: 'FRONT' },
-                { id: 'side', label: 'SIDE' },
+                { id: 'iso', label: '3D' },
                 { id: 'bed', label: 'BED' },
-                { id: 'top', label: 'TOP 2D' },
-                { id: 'full', label: 'MACRO' },
+                { id: 'top', label: 'TOP' },
               ] as const
             ).map((preset) => (
               <button
@@ -343,22 +327,6 @@ export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({
             <span className="font-bold uppercase tracking-wider">{patient.posture}</span>: {patient.postureDescription}
           </div>
         </div>
-
-        {/* Quality Controls */}
-        <div className="hidden sm:flex items-center gap-1 glass-panel backdrop-blur-xl px-2.5 py-1 rounded-full border border-white/10 text-[10px] font-tech text-slate-400 pointer-events-auto">
-          <span>QUALITY:</span>
-          {(['high', 'balanced', 'performance'] as const).map((q) => (
-            <button
-              key={q}
-              onClick={() => setQuality(q)}
-              className={`px-2 py-0.5 rounded uppercase font-bold transition-all cursor-pointer ${
-                quality === q ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'hover:text-white'
-              }`}
-            >
-              {q}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* ========================================================= */}
@@ -410,8 +378,6 @@ export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({
               {/* Patient 3D Digital Twin Avatar */}
               <DigitalTwinHuman
                 patient={patient}
-                csiState={csiState}
-                showDebugSkeleton={showDebugSkeleton}
                 quality={quality}
               />
 

@@ -1,0 +1,58 @@
+{
+  "name": "AetherPulse Agent Orchestration",
+  "nodes": [
+    {
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "path": "aetherpulse-agent",
+        "httpMethod": "POST"
+      }
+    },
+    {
+      "name": "Permission Gate",
+      "type": "n8n-nodes-base.httpRequest",
+      "notes": "POST {APP_URL}/api/agent/command — tools are executed on AetherPulse, never with raw DB credentials."
+    },
+    {
+      "name": "Patient Management",
+      "type": "n8n-nodes-base.httpRequest",
+      "notes": "createPatient / getPatient / updatePatient / searchPatients / transferPatient"
+    },
+    {
+      "name": "CSI Monitoring",
+      "type": "n8n-nodes-base.httpRequest",
+      "notes": "enableMonitoring / getRespiratoryStatus / getHighRiskEvents"
+    },
+    {
+      "name": "Alert Management",
+      "type": "n8n-nodes-base.httpRequest",
+      "notes": "getAlerts / acknowledgeAlert / escalateAlert — suppressAlert is denied to the agent"
+    },
+    {
+      "name": "Settings Management",
+      "type": "n8n-nodes-base.httpRequest",
+      "notes": "updateSettings / updateNotificationSettings / setTwinReplayWindow"
+    },
+    {
+      "name": "Digital Twin",
+      "type": "n8n-nodes-base.httpRequest",
+      "notes": "selectPatientTwin / focusTwinCamera / twinPlayback / toggleTwinLayer"
+    },
+    {
+      "name": "Notifications",
+      "type": "n8n-nodes-base.httpRequest",
+      "notes": "notifyStaff — authorized roster only"
+    },
+    {
+      "name": "Reporting",
+      "type": "n8n-nodes-base.httpRequest",
+      "notes": "generateReport / getSystemStatus"
+    },
+    {
+      "name": "Audit Logging",
+      "type": "n8n-nodes-base.httpRequest",
+      "notes": "GET {APP_URL}/api/agent/audit"
+    }
+  ]
+}

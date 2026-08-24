@@ -90,11 +90,17 @@ export const RoomMarker: React.FC<RoomMarkerProps> = ({
     return name.slice(0, 2).toUpperCase();
   };
 
+  const emphasis = isSelected ? 1.04 : isHovered ? 1.025 : 1;
+
   return (
     <g
       id={`spatial-room-node-${room.roomNumber}`}
-      className="room-marker cursor-pointer transition-all duration-300 select-none"
-      style={{ opacity }}
+      className="room-marker cursor-pointer select-none"
+      style={{
+        opacity,
+        transform: `translate(${centerX}px, ${centerY}px) scale(${emphasis}) translate(${-centerX}px, ${-centerY}px)`,
+        transition: 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease',
+      }}
       onClick={() => onSelect(room.id)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -134,6 +140,7 @@ export const RoomMarker: React.FC<RoomMarkerProps> = ({
         stroke={isSelected ? '#c084fc' : isHovered ? '#38bdf8' : colors.stroke}
         strokeWidth={isSelected ? 2.5 : isHovered ? 2 : 1.5}
         rx="10"
+        style={{ transition: 'fill 200ms ease, stroke 200ms ease, stroke-width 200ms ease' }}
       />
 
       {/* Inner Hospital Bed CAD Outline */}

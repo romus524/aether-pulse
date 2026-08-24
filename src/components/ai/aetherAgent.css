@@ -636,10 +636,8 @@
   cursor: pointer;
 }
 
-.ap-ai-confirm button.is-ghost {
-  background: transparent;
-  border: 1px solid rgba(196, 181, 253, 0.25);
-  color: #e9e4ff;
+.ap-ai-confirm--bar {
+  padding: 0 14px 8px;
 }
 
 .ap-ai-log-panel {

@@ -122,9 +122,9 @@ export function AetherPulseAgent({ role, userId, userName, selectedRoomId, onSna
 
   const send = async (utterance: string, confirmation?: { confirmationId: string; approved: boolean }) => {
     const text = utterance.trim();
-    if ((!text && !confirmation) || busy) return;
+    if (!confirmation && (!text || busy)) return;
     setInput("");
-    setPhase("thinking");
+    setPhase(confirmation ? "executing" : "thinking");
     if (!confirmation) {
       setMessages((prev) =>
         prev.concat({
@@ -135,11 +135,10 @@ export function AetherPulseAgent({ role, userId, userName, selectedRoomId, onSna
           tone: classifyTone(text),
         }),
       );
+      window.setTimeout(() => setPhase("planning"), 220);
     }
-    window.setTimeout(() => setPhase("planning"), 220);
 
     try {
-      setPhase(confirmation ? "executing" : "planning");
       const data = await runAgentCommand({
         utterance: text || "confirm",
         role,
@@ -267,6 +266,17 @@ export function AetherPulseAgent({ role, userId, userName, selectedRoomId, onSna
                 </article>
               ))}
             </div>
+
+            {pendingConfirm && (
+              <div className="ap-ai-confirm ap-ai-confirm--bar">
+                <button type="button" onClick={() => void send("approved", { confirmationId: pendingConfirm, approved: true })}>
+                  Confirm and execute
+                </button>
+                <button type="button" className="is-ghost" onClick={() => void send("rejected", { confirmationId: pendingConfirm, approved: false })}>
+                  Cancel
+                </button>
+              </div>
+            )}
 
             <form className="ap-ai-composer" onSubmit={onSubmit}>
               <textarea

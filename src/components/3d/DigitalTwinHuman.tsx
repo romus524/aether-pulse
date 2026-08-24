@@ -3,11 +3,13 @@ import { useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { PatientRecord } from '../../types';
-import { getCSISpatialState } from './CSIAdapter';
+import { getPlaybackSpatialState } from './scenarioPlayback';
 import { TwinMotionFilter } from './twinMotion';
 
 interface DigitalTwinHumanProps {
   patient: PatientRecord;
+  simulationTimeRef: React.MutableRefObject<number>;
+  seekVersion?: number;
   showDebugSkeleton?: boolean;
   quality?: 'high' | 'balanced' | 'performance';
 }
@@ -19,6 +21,8 @@ const TRAIL_LENGTH = 14;
 
 export const DigitalTwinHuman: React.FC<DigitalTwinHumanProps> = ({
   patient,
+  simulationTimeRef,
+  seekVersion = 0,
   showDebugSkeleton = false,
   quality = 'high',
 }) => {
@@ -32,8 +36,8 @@ export const DigitalTwinHuman: React.FC<DigitalTwinHumanProps> = ({
   const trailCursor = useRef(0);
 
   useEffect(() => {
-    filterRef.current.reset(getCSISpatialState(patient, 0));
-  }, [patient.id]);
+    filterRef.current.reset(getPlaybackSpatialState(patient, simulationTimeRef.current));
+  }, [patient.id, seekVersion, simulationTimeRef]);
 
   const statusColor = useMemo(() => {
     if (patient.status === 'critical') return '#ef4444';
@@ -94,8 +98,16 @@ export const DigitalTwinHuman: React.FC<DigitalTwinHumanProps> = ({
     return { twin: cloned, hologram: hologramMesh, scale: nextScale };
   }, [scene]);
 
-  useFrame(({ clock }, delta) => {
-    const state = getCSISpatialState(patient, clock.getElapsedTime());
+  const lastTimeRef = useRef(0);
+
+  useFrame((_, delta) => {
+    const time = simulationTimeRef.current;
+    if (Math.abs(time - lastTimeRef.current) > 0.45) {
+      filterRef.current.reset(getPlaybackSpatialState(patient, time));
+    }
+    lastTimeRef.current = time;
+
+    const state = getPlaybackSpatialState(patient, time);
     const filter = filterRef.current;
     filter.update(state, delta);
 
@@ -107,11 +119,11 @@ export const DigitalTwinHuman: React.FC<DigitalTwinHumanProps> = ({
     if (meshPivotRef.current) {
       const gait =
         state.posture === 'walking'
-          ? Math.abs(Math.sin(clock.getElapsedTime() * 7.2 * Math.max(state.gaitSpeed, 0.35))) * 0.028
+          ? Math.abs(Math.sin(time * 7.2 * Math.max(state.gaitSpeed, 0.35))) * 0.028
           : 0;
       const sway =
         state.posture === 'walking'
-          ? Math.sin(clock.getElapsedTime() * 7.2 * Math.max(state.gaitSpeed, 0.35)) * 0.035
+          ? Math.sin(time * 7.2 * Math.max(state.gaitSpeed, 0.35)) * 0.035
           : 0;
 
       meshPivotRef.current.position.y = gait;
@@ -124,10 +136,10 @@ export const DigitalTwinHuman: React.FC<DigitalTwinHumanProps> = ({
     }
 
     if (haloRef.current) {
-      const pulse = 1 + Math.sin(clock.getElapsedTime() * 2.4) * 0.06;
-      haloRef.current.scale.setScalar(pulse);
+      const pulse = 1 + Math.sin(time * 2.4) * 0.06;
+      haloRef.current.scale.setScalar(pulse * (state.isCritical ? 1.12 : 1));
       const material = haloRef.current.material as THREE.MeshBasicMaterial;
-      material.opacity = state.isCritical ? 0.55 : 0.28;
+      material.opacity = state.isCritical ? 0.58 : 0.28;
       material.color.set(statusColor);
     }
 

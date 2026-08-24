@@ -173,3 +173,13 @@
 .animate-soft-pulse {
   animation: softPulse 3s infinite ease-in-out;
 }
+
+.hospital-map-viewport {
+  overscroll-behavior: contain;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.hospital-map-layer {
+  backface-visibility: hidden;
+}

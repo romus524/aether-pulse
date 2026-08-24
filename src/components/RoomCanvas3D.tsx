@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, Suspense, Component, ErrorInfo, ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { ContactShadows, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { PatientRecord } from '../types';
 import { 
@@ -55,25 +55,38 @@ class ThreeErrorBoundary extends Component<{ children: ReactNode; fallback: Reac
 // -------------------------------------------------------------
 export type CameraPreset = 'iso' | 'front' | 'side' | 'top' | 'bed' | 'full';
 
-function CameraAnimator({ cameraPreset }: { cameraPreset: CameraPreset }) {
+function CameraAnimator({
+  cameraPreset,
+  patient,
+}: {
+  cameraPreset: CameraPreset;
+  patient: PatientRecord;
+}) {
   const { camera } = useThree();
+  const lookAt = useMemo(() => new THREE.Vector3(), []);
 
   const presets: Record<CameraPreset, { pos: [number, number, number]; target: [number, number, number] }> = {
-    iso: { pos: [3.2, 2.8, 3.8], target: [0.2, 0.45, 0.1] },
-    front: { pos: [0, 1.4, 4.2], target: [0, 0.5, 0] },
-    side: { pos: [4.2, 1.4, 0], target: [0, 0.5, 0] },
+    iso: { pos: [3.2, 2.8, 3.8], target: [0.2, 0.55, 0.1] },
+    front: { pos: [0, 1.4, 4.2], target: [0, 0.7, 0] },
+    side: { pos: [4.2, 1.4, 0], target: [0, 0.7, 0] },
     top: { pos: [0.01, 5.4, 0.01], target: [0, 0, 0] },
-    bed: { pos: [1.6, 1.3, 1.7], target: [0.2, 0.5, 0.1] },
-    full: { pos: [4.9, 3.9, 5.3], target: [0, 0.5, 0] },
+    bed: { pos: [1.6, 1.3, 1.7], target: [0.15, 0.55, 0.05] },
+    full: { pos: [4.9, 3.9, 5.3], target: [0, 0.55, 0] },
   };
 
-  useFrame(() => {
+  useFrame(({ clock }, delta) => {
     const target = presets[cameraPreset];
+    const csi = getCSISpatialState(patient, clock.getElapsedTime());
     if (target) {
-      camera.position.x = THREE.MathUtils.lerp(camera.position.x, target.pos[0], 0.06);
-      camera.position.y = THREE.MathUtils.lerp(camera.position.y, target.pos[1], 0.06);
-      camera.position.z = THREE.MathUtils.lerp(camera.position.z, target.pos[2], 0.06);
-      camera.lookAt(target.target[0], target.target[1], target.target[2]);
+      camera.position.x = THREE.MathUtils.damp(camera.position.x, target.pos[0], 3.8, delta);
+      camera.position.y = THREE.MathUtils.damp(camera.position.y, target.pos[1], 3.8, delta);
+      camera.position.z = THREE.MathUtils.damp(camera.position.z, target.pos[2], 3.8, delta);
+      lookAt.set(
+        THREE.MathUtils.lerp(target.target[0], csi.coordinates.x, 0.35),
+        THREE.MathUtils.lerp(target.target[1], csi.coordinates.y, 0.25),
+        THREE.MathUtils.lerp(target.target[2], csi.coordinates.z, 0.35)
+      );
+      camera.lookAt(lookAt);
     }
   });
 
@@ -101,14 +114,10 @@ export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({
   const [time, setTime] = useState<number>(0);
 
   useEffect(() => {
-    let animId: number;
-    const start = performance.now();
-    const tick = (now: number) => {
-      setTime((now - start) / 1000);
-      animId = requestAnimationFrame(tick);
-    };
-    animId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(animId);
+    const id = window.setInterval(() => {
+      setTime(performance.now() / 1000);
+    }, 120);
+    return () => window.clearInterval(id);
   }, []);
 
   // Compute live CSI state & spatial kinematics
@@ -355,25 +364,33 @@ export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({
           >
             <color attach="background" args={['#020617']} />
 
-            {/* CLINICAL LIGHTING RIG */}
-            <ambientLight intensity={0.85} color="#e2e8f0" />
+            <hemisphereLight args={['#dbe7ff', '#141826', 0.55]} />
+            <ambientLight intensity={0.32} color="#c7d2fe" />
             <directionalLight
-              position={[5, 8, 4]}
-              intensity={1.8}
-              color="#ffffff"
-              castShadow
-              shadow-mapSize-width={1024}
-              shadow-mapSize-height={1024}
+              position={[4.2, 7.2, 3.4]}
+              intensity={quality === 'performance' ? 1.1 : 1.55}
+              color="#fff7ed"
+              castShadow={quality !== 'performance'}
+              shadow-mapSize-width={quality === 'high' ? 2048 : 1024}
+              shadow-mapSize-height={quality === 'high' ? 2048 : 1024}
+              shadow-bias={-0.0002}
+              shadow-camera-near={0.5}
+              shadow-camera-far={16}
+              shadow-camera-left={-5}
+              shadow-camera-right={5}
+              shadow-camera-top={5}
+              shadow-camera-bottom={-5}
             />
-            <directionalLight position={[-4, 3, -4]} intensity={0.6} color="#94a3b8" />
+            <directionalLight position={[-3.5, 2.8, -3.2]} intensity={0.45} color="#93c5fd" />
             <pointLight
               position={[0, 2.2, 0]}
-              intensity={csiState.isCritical ? 3.2 : 1.2}
-              color={csiState.isCritical ? '#ef4444' : '#38bdf8'}
+              intensity={csiState.isCritical ? 2.1 : 0.7}
+              color={csiState.isCritical ? '#ef4444' : '#67e8f9'}
+              distance={6}
             />
 
             {/* CAMERA SMOOTH LERP CONTROLLER */}
-            <CameraAnimator cameraPreset={cameraPreset} />
+            <CameraAnimator cameraPreset={cameraPreset} patient={patient} />
 
             <Suspense fallback={null}>
               {/* Spatial Hospital Room & Sensing Infrastructure */}
@@ -382,7 +399,6 @@ export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({
               {/* Patient 3D Digital Twin Avatar */}
               <DigitalTwinHuman
                 patient={patient}
-                csiState={csiState}
                 showDebugSkeleton={showDebugSkeleton}
                 quality={quality}
               />
@@ -406,6 +422,17 @@ export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({
                 csiState={csiState}
                 enabled={showTrajectory}
               />
+
+              {quality !== 'performance' && (
+                <ContactShadows
+                  position={[0, 0.001, 0]}
+                  opacity={0.42}
+                  scale={6}
+                  blur={2.4}
+                  far={2.8}
+                  color="#020617"
+                />
+              )}
             </Suspense>
 
             {/* Full 360° Smooth Orbit Controls */}

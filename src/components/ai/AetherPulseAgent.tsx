@@ -1,6 +1,6 @@
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Bot, Brain, Check, Cpu, Send, Sparkles, Workflow, X } from "lucide-react";
+import { Brain, Send, X } from "lucide-react";
 import { AetherPulseMark } from "./AetherPulseMark";
 import { getN8nSessionId, sendN8nMessage } from "../../lib/n8nChat";
 import "./aetherAgent.css";
@@ -18,40 +18,12 @@ interface ChatMessage {
   executing?: boolean;
 }
 
-interface TimelineEvent {
-  id: string;
-  at: number;
-  label: string;
-}
-
-const TOOLS = ["CSI twin", "Ward map", "Fall FSM", "n8n"];
-
-const PHASE_COPY: Record<AgentPhase, { status: string; task: string; workflow: string }> = {
-  idle: {
-    status: "Standing by",
-    task: "Awaiting a natural-language command",
-    workflow: "Ready",
-  },
-  thinking: {
-    status: "Thinking",
-    task: "Interpreting clinical intent",
-    workflow: "AI Agent",
-  },
-  processing: {
-    status: "Processing",
-    task: "Selecting connected n8n tools",
-    workflow: "Tool",
-  },
-  executing: {
-    status: "Executing",
-    task: "Running the AetherPulse workflow",
-    workflow: "Processing",
-  },
-  completed: {
-    status: "Completed",
-    task: "Result ready for review",
-    workflow: "Result",
-  },
+const PHASE_STATUS: Record<AgentPhase, string> = {
+  idle: "Standing by",
+  thinking: "Thinking",
+  processing: "Processing",
+  executing: "Executing",
+  completed: "Completed",
 };
 
 function classifyTone(text: string): ClinicalTone {
@@ -79,25 +51,6 @@ function formatClock(ts: number): string {
   });
 }
 
-const NODES = [
-  { id: "agent", label: "AI Agent", icon: Bot },
-  { id: "tool", label: "Tool", icon: Workflow },
-  { id: "processing", label: "Processing", icon: Cpu },
-  { id: "result", label: "Result", icon: Check },
-] as const;
-
-function nodeState(phase: AgentPhase, id: (typeof NODES)[number]["id"]): "idle" | "active" | "done" {
-  const order = ["agent", "tool", "processing", "result"] as const;
-  const index = order.indexOf(id);
-  if (phase === "idle") return "idle";
-  if (phase === "completed") return "done";
-  const activeIndex =
-    phase === "thinking" ? 0 : phase === "processing" ? 1 : phase === "executing" ? 2 : 3;
-  if (index < activeIndex) return "done";
-  if (index === activeIndex) return "active";
-  return "idle";
-}
-
 export function AetherPulseAgent() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -111,18 +64,10 @@ export function AetherPulseAgent() {
       tone: "quiet",
     },
   ]);
-  const [timeline, setTimeline] = useState<TimelineEvent[]>([
-    { id: "boot", at: Date.now(), label: "Agent connected to n8n webhook" },
-  ]);
-  const [insight, setInsight] = useState(
-    "No new clinical insight. Ward telemetry remains the source of truth until a command is run.",
-  );
-  const [alert, setAlert] = useState<string | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
   const timers = useRef<number[]>([]);
 
   const sessionId = useMemo(() => getN8nSessionId(), []);
-  const phaseMeta = PHASE_COPY[phase];
   const busy = phase === "thinking" || phase === "processing" || phase === "executing";
 
   useEffect(() => {
@@ -136,10 +81,6 @@ export function AetherPulseAgent() {
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, open]);
-
-  const pushTimeline = (label: string) => {
-    setTimeline((prev) => [{ id: crypto.randomUUID(), at: Date.now(), label }, ...prev].slice(0, 8));
-  };
 
   const schedulePhase = (next: AgentPhase, delay: number) => {
     const id = window.setTimeout(() => setPhase(next), delay);
@@ -156,7 +97,6 @@ export function AetherPulseAgent() {
     const userTone = classifyTone(text);
     setInput("");
     setPhase("thinking");
-    pushTimeline("Interpreted clinician command");
     setMessages((prev) => [
       ...prev,
       { id: crypto.randomUUID(), role: "user", text, at: Date.now(), tone: userTone },
@@ -180,11 +120,6 @@ export function AetherPulseAgent() {
       await new Promise((resolve) => window.setTimeout(resolve, 280));
       const tone = classifyTone(`${text}\n${reply}`);
       setPhase("completed");
-      pushTimeline("n8n workflow returned a result");
-      setInsight(reply.slice(0, 220));
-      if (tone !== "quiet") {
-        setAlert(tone === "emergency" ? "Emergency-priority language in the latest exchange." : "Clinically significant language in the latest exchange.");
-      }
       setMessages((prev) =>
         prev
           .filter((msg) => msg.id !== "pending")
@@ -196,13 +131,12 @@ export function AetherPulseAgent() {
             tone,
           }),
       );
-      window.setTimeout(() => setPhase("idle"), 1600);
+      schedulePhase("idle", 1600);
     } catch (error) {
       timers.current.forEach((id) => window.clearTimeout(id));
       timers.current = [];
       const detail = error instanceof Error ? error.message : "Unknown error";
       setPhase("idle");
-      pushTimeline("Workflow request failed");
       setMessages((prev) =>
         prev
           .filter((msg) => msg.id !== "pending")
@@ -268,7 +202,7 @@ export function AetherPulseAgent() {
                 <p>Healthcare operations agent · n8n</p>
                 <div className="ap-ai-status">
                   <span className={`ap-ai-status-dot${busy ? " is-busy" : ""}`} />
-                  {phaseMeta.status}
+                  {PHASE_STATUS[phase]}
                 </div>
               </div>
               <button type="button" className="ap-ai-icon-btn" aria-label="Close agent" onClick={() => setOpen(false)}>
@@ -276,76 +210,7 @@ export function AetherPulseAgent() {
               </button>
             </header>
 
-            <div className="ap-ai-meta">
-              <div className="ap-ai-chip">
-                <span>Current task</span>
-                <strong>{phaseMeta.task}</strong>
-              </div>
-              <div className="ap-ai-chip">
-                <span>Connected tools</span>
-                <div className="ap-ai-tools">
-                  {TOOLS.map((tool) => (
-                    <em key={tool}>{tool}</em>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="ap-ai-flow" data-phase={phase}>
-              <div className="ap-ai-flow-head">
-                <span>Workflow</span>
-                <small>{phaseMeta.workflow}</small>
-              </div>
-              <div className="ap-ai-graph">
-                <svg className="ap-ai-edges" viewBox="0 0 320 12" preserveAspectRatio="none" aria-hidden>
-                  <path className="ap-ai-edges__track" d="M16 6 H304" />
-                  <path className="ap-ai-edges__flow" d="M16 6 H304" />
-                </svg>
-                {NODES.map((node) => {
-                  const Icon = node.icon;
-                  const state = nodeState(phase, node.id);
-                  return (
-                    <div key={node.id} className={`ap-ai-node is-${state}`}>
-                      <Icon />
-                      <label>{node.label}</label>
-                    </div>
-                  );
-                })}
-              </div>
-              <ul className="ap-ai-phases">
-                {(["Thinking", "Processing", "Executing", "Completed"] as const).map((label) => {
-                  const on =
-                    (label === "Thinking" && (phase === "thinking" || busy || phase === "completed")) ||
-                    (label === "Processing" && (phase === "processing" || phase === "executing" || phase === "completed")) ||
-                    (label === "Executing" && (phase === "executing" || phase === "completed")) ||
-                    (label === "Completed" && phase === "completed");
-                  return (
-                    <li key={label} className={on ? "is-on" : ""}>
-                      {label}
-                    </li>
-                  );
-                })}
-              </ul>
-              <ul className="ap-ai-timeline">
-                {timeline.slice(0, 3).map((event) => (
-                  <li key={event.id}>
-                    <time>{formatClock(event.at)}</time>
-                    {event.label}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
             <div className="ap-ai-thread" ref={threadRef}>
-              {alert && (
-                <div className="ap-ai-alert" role="status">
-                  {alert}
-                </div>
-              )}
-              <div className="ap-ai-insight">
-                <Sparkles size={12} />
-                <p>{insight}</p>
-              </div>
               {messages.map((message) => (
                 <article
                   key={message.id}

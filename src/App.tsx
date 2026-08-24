@@ -108,9 +108,7 @@ export default function App() {
   const [showActivityLog, setShowActivityLog] = useState(false);
   const [activityLog, setActivityLog] = useState<AgentAuditEntry[]>([]);
 
-  const apiBaseUrl =
-    import.meta.env.VITE_API_URL ||
-    (window.location.hostname === 'localhost' ? 'http://localhost:8787' : '');
+  const apiBaseUrl = import.meta.env.VITE_API_URL || '';
 
   const handleCloseScreenShare = useCallback(() => {
     setRoomName(null);
@@ -277,7 +275,7 @@ export default function App() {
 
   const handleOverrideAlert = useCallback(async () => {
     try {
-      await fetch('http://localhost:8787/api/incidents', {
+      await fetch(`${apiBaseUrl}/api/incidents`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

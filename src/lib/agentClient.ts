@@ -6,10 +6,7 @@ import {
 } from "../platform/agentProtocol";
 
 export function apiBase(): string {
-  return (
-    import.meta.env.VITE_API_URL ||
-    (window.location.hostname === "localhost" ? "http://localhost:8787" : "")
-  );
+  return import.meta.env.VITE_API_URL || "";
 }
 
 export async function runAgentCommand(body: AgentCommandRequest): Promise<AgentCommandResponse> {

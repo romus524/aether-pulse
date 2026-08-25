@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FacilityRoom, SortField, SortDirection } from '../../types';
 import { RoomCard } from './RoomCard';
 import { LayoutGrid, List, ArrowUpDown, SearchX } from 'lucide-react';
+import { useAccess } from '../../platform/AccessContext';
 
 interface RoomGridProps {
   rooms: FacilityRoom[];
@@ -16,6 +17,7 @@ export const RoomGrid: React.FC<RoomGridProps> = ({
   onSelectRoom,
   onDispatchModal,
 }) => {
+  const access = useAccess();
   const [viewMode, setViewMode] = useState<'grid' | 'compact'>('grid');
   const [sortField, setSortField] = useState<SortField>('roomNumber');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -162,6 +164,7 @@ export const RoomGrid: React.FC<RoomGridProps> = ({
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-slate-900 border-white/10 text-slate-200">
                     {room.status}
                   </span>
+                  {access.can('dispatch') && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -171,6 +174,7 @@ export const RoomGrid: React.FC<RoomGridProps> = ({
                   >
                     Dispatch
                   </button>
+                  )}
                 </div>
               </div>
             );

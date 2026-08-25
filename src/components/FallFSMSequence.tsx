@@ -1,6 +1,7 @@
 import React from 'react';
 import { FSMStage, PatientRecord } from '../types';
 import { CheckCircle2, ShieldAlert, ShieldCheck, AlertOctagon, Zap, ArrowRight, Activity, TrendingDown, BellRing, ChevronRight } from 'lucide-react';
+import { useAccess } from '../platform/AccessContext';
 
 interface FallFSMSequenceProps {
   stages: FSMStage[];
@@ -15,6 +16,7 @@ export const FallFSMSequence: React.FC<FallFSMSequenceProps> = ({
   onVerifyAlert,
   onOverrideAlert,
 }) => {
+  const access = useAccess();
   const isCritical = patient.status === 'critical';
   const isWarning = patient.status === 'warning';
 
@@ -195,27 +197,32 @@ export const FallFSMSequence: React.FC<FallFSMSequenceProps> = ({
       </div>
 
       {/* 4. Large Thumb-Friendly High-Contrast Action Buttons */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 mt-3.5 pt-1">
-        <button
-          id="btn-verify-escalate"
-          type="button"
-          onClick={onVerifyAlert}
-          className="w-full py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-slate-950 font-sora text-xs sm:text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)] cursor-pointer"
-        >
-          <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-slate-950 stroke-[2.5]" />
-          <span>VERIFY & ESCALATE</span>
-        </button>
-
-        <button
-          id="btn-false-positive"
-          type="button"
-          onClick={onOverrideAlert}
-          className="w-full py-3 px-4 rounded-xl bg-slate-900/90 hover:bg-slate-800 active:scale-[0.98] text-amber-300 hover:text-amber-200 border border-amber-500/40 hover:border-amber-500/70 font-sora text-xs sm:text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all shadow-[0_0_14px_rgba(245,158,11,0.15)] cursor-pointer"
-        >
-          <AlertOctagon className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 stroke-[2.2]" />
-          <span>FALSE POSITIVE</span>
-        </button>
-      </div>
+      {(access.can("dispatch") || access.can("overrideAlert")) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 mt-3.5 pt-1">
+          {access.can("dispatch") && (
+            <button
+              id="btn-verify-escalate"
+              type="button"
+              onClick={onVerifyAlert}
+              className="w-full py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-slate-950 font-sora text-xs sm:text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)] cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-slate-950 stroke-[2.5]" />
+              <span>VERIFY & ESCALATE</span>
+            </button>
+          )}
+          {access.can("overrideAlert") && (
+            <button
+              id="btn-false-positive"
+              type="button"
+              onClick={onOverrideAlert}
+              className="w-full py-3 px-4 rounded-xl bg-slate-900/90 hover:bg-slate-800 active:scale-[0.98] text-amber-300 hover:text-amber-200 border border-amber-500/40 hover:border-amber-500/70 font-sora text-xs sm:text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all shadow-[0_0_14px_rgba(245,158,11,0.15)] cursor-pointer"
+            >
+              <AlertOctagon className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 stroke-[2.2]" />
+              <span>FALSE POSITIVE</span>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

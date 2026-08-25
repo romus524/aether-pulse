@@ -13,6 +13,7 @@ import {
   Radio,
 } from 'lucide-react';
 import { SimulatedEventVideoFeed, EventScenarioId } from './SimulatedEventVideoFeed';
+import { useAccess } from '../platform/AccessContext';
 
 interface PatientInspectorProps {
   patient: PatientRecord;
@@ -62,6 +63,8 @@ export const PatientInspector: React.FC<PatientInspectorProps> = ({
   onTogglePointCloud,
 }) => {
   const [showVideoReplay, setShowVideoReplay] = useState(false);
+  const access = useAccess();
+  const visible = access.displayPatient(patient);
   const isCritical = patient.status === 'critical';
   const isWarning = patient.status === 'warning';
   const highRisk = patient.fallRiskScore >= 15;
@@ -90,12 +93,12 @@ export const PatientInspector: React.FC<PatientInspectorProps> = ({
               Room inspector
             </div>
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <h2 className="headline-title text-lg truncate">{patient.name}</h2>
+              <h2 className="headline-title text-lg truncate">{visible.name}</h2>
               <span className="text-[11px] text-slate-400 font-sora">
-                {patient.age}y · {patient.gender} · Bed {patient.bedNumber}
+                {visible.age}y · {visible.gender} · Bed {visible.bedNumber}
               </span>
             </div>
-            <p className="truncate text-[11px] text-slate-500 font-sora">{patient.diagnosis}</p>
+            <p className="truncate text-[11px] text-slate-500 font-sora">{visible.diagnosis}</p>
           </div>
         </div>
         <span
@@ -108,8 +111,8 @@ export const PatientInspector: React.FC<PatientInspectorProps> = ({
       </div>
 
       <div className="relative z-[1] px-4 py-2.5 grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <MetaCell label="MRN" value={patient.mrn} mono />
-        <MetaCell label="Physician" value={patient.physician} />
+        <MetaCell label="MRN" value={visible.mrn} mono />
+        <MetaCell label="Physician" value={visible.physician} />
         <MetaCell label="Admitted" value={patient.admissionDate} />
         <div className="glass-card rounded-xl px-3 py-2">
           <div className="text-[9px] text-slate-400 uppercase tracking-[0.14em] font-sora font-semibold">
@@ -126,35 +129,41 @@ export const PatientInspector: React.FC<PatientInspectorProps> = ({
       {!showVideoReplay && <LivePatientStatus patient={patient} />}
 
       <div className="relative z-[1] px-4 pb-3 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={onDispatchNurse}
-          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-sora font-semibold text-white ${
-            isCritical
-              ? 'bg-red-600/90 hover:bg-red-500 border border-red-400/40 shadow-[0_0_16px_rgba(239,68,68,0.28)]'
-              : 'glass-button-primary'
-          }`}
-        >
-          <BellRing className="h-3.5 w-3.5" />
-          Dispatch
-        </button>
-        <button
-          type="button"
-          onClick={onTriggerIntercom}
-          className="glass-pill inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-sora font-semibold text-slate-200 hover:text-white"
-        >
-          <Phone className="h-3.5 w-3.5 text-cyan-400" />
-          Intercom
-        </button>
-        <button
-          type="button"
-          onClick={onStartScreenShare}
-          className="glass-pill inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-sora font-semibold text-slate-200 hover:text-white"
-        >
-          <MonitorUp className="h-3.5 w-3.5 text-violet-400" />
-          Share
-        </button>
-        {isCritical && (
+        {access.can("dispatch") && (
+          <button
+            type="button"
+            onClick={onDispatchNurse}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-sora font-semibold text-white ${
+              isCritical
+                ? 'bg-red-600/90 hover:bg-red-500 border border-red-400/40 shadow-[0_0_16px_rgba(239,68,68,0.28)]'
+                : 'glass-button-primary'
+            }`}
+          >
+            <BellRing className="h-3.5 w-3.5" />
+            Dispatch
+          </button>
+        )}
+        {access.can("intercom") && (
+          <button
+            type="button"
+            onClick={onTriggerIntercom}
+            className="glass-pill inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-sora font-semibold text-slate-200 hover:text-white"
+          >
+            <Phone className="h-3.5 w-3.5 text-cyan-400" />
+            Intercom
+          </button>
+        )}
+        {access.can("screenShare") && (
+          <button
+            type="button"
+            onClick={onStartScreenShare}
+            className="glass-pill inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-sora font-semibold text-slate-200 hover:text-white"
+          >
+            <MonitorUp className="h-3.5 w-3.5 text-violet-400" />
+            Share
+          </button>
+        )}
+        {isCritical && access.can("acknowledge") && (
           <button
             type="button"
             onClick={onAcknowledgeAlert}
@@ -166,30 +175,34 @@ export const PatientInspector: React.FC<PatientInspectorProps> = ({
         )}
 
         <div className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowVideoReplay((open) => !open)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-sora font-semibold ${
-              showVideoReplay
-                ? 'glass-button-primary text-white'
-                : 'glass-pill text-slate-200 hover:text-white'
-            }`}
-          >
-            <Video className="h-3.5 w-3.5" />
-            Replay
-          </button>
-          <button
-            type="button"
-            onClick={onTogglePointCloud}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-sora font-semibold transition-all ${
-              showPointCloud
-                ? 'glass-button-primary text-white'
-                : 'bg-slate-800/80 text-slate-400 border border-white/10 hover:text-white hover:border-white/20'
-            }`}
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            Cloud {showPointCloud ? 'On' : 'Off'}
-          </button>
+          {access.can("twinPlayback") && (
+            <button
+              type="button"
+              onClick={() => setShowVideoReplay((open) => !open)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-sora font-semibold ${
+                showVideoReplay
+                  ? 'glass-button-primary text-white'
+                  : 'glass-pill text-slate-200 hover:text-white'
+              }`}
+            >
+              <Video className="h-3.5 w-3.5" />
+              Replay
+            </button>
+          )}
+          {access.can("togglePointCloud") && (
+            <button
+              type="button"
+              onClick={onTogglePointCloud}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-sora font-semibold transition-all ${
+                showPointCloud
+                  ? 'glass-button-primary text-white'
+                  : 'bg-slate-800/80 text-slate-400 border border-white/10 hover:text-white hover:border-white/20'
+              }`}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Cloud {showPointCloud ? 'On' : 'Off'}
+            </button>
+          )}
         </div>
       </div>
 

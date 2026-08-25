@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { FacilityRoom } from '../../types';
 import { X, Heart, Wind, ShieldAlert, Activity, Wifi, Send, CheckCircle2, User, FileText, AlertTriangle, Video, Maximize2 } from 'lucide-react';
 import { SimulatedEventVideoFeed, EventScenarioId } from '../SimulatedEventVideoFeed';
+import { useAccess } from '../../platform/AccessContext';
 
 interface PatientInspectorDrawerProps {
   room: FacilityRoom | null;
@@ -16,6 +17,7 @@ export const PatientInspectorDrawer: React.FC<PatientInspectorDrawerProps> = ({
   onDispatchModal,
   onClearRoomStatus,
 }) => {
+  const access = useAccess();
   const [showVideoModal, setShowVideoModal] = useState(false);
 
   if (!room) return null;
@@ -178,6 +180,7 @@ export const PatientInspectorDrawer: React.FC<PatientInspectorDrawerProps> = ({
             </p>
           </div>
 
+          {access.can('twinPlayback') && (
           <button
             onClick={() => setShowVideoModal(true)}
             className="w-full py-2 px-3 rounded-xl bg-purple-950/80 hover:bg-purple-900 border border-purple-500/50 text-purple-200 hover:text-white font-sora font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg"
@@ -185,11 +188,13 @@ export const PatientInspectorDrawer: React.FC<PatientInspectorDrawerProps> = ({
             <Video className="w-3.5 h-3.5 text-cyan-400" />
             <span>VIEW 3D MOTION & INCIDENT REPLAY</span>
           </button>
+          )}
         </div>
       </div>
 
       {/* Drawer Action Bar */}
       <div className="shrink-0 p-4 sm:p-5 border-t border-white/10 bg-slate-950/80 backdrop-blur-md space-y-2">
+        {access.can('dispatch') && (
         <button
           onClick={() => onDispatchModal(room)}
           className="w-full py-3 px-4 rounded-full bg-gradient-to-r from-red-600 to-purple-600 hover:from-red-500 hover:to-purple-500 text-white font-sora font-extrabold text-xs shadow-xl shadow-red-950/50 flex items-center justify-center gap-2 cursor-pointer transition-all"
@@ -197,8 +202,9 @@ export const PatientInspectorDrawer: React.FC<PatientInspectorDrawerProps> = ({
           <Send className="w-4 h-4" />
           DISPATCH EMERGENCY PERSONNEL TO ROOM {room.roomNumber}
         </button>
+        )}
 
-        {room.status !== 'normal' && (
+        {room.status !== 'normal' && access.can('acknowledge') && (
           <button
             onClick={() => onClearRoomStatus(room.id)}
             className="w-full py-2.5 px-4 rounded-full bg-slate-900 hover:bg-emerald-950/60 text-emerald-300 hover:text-emerald-200 border border-emerald-500/40 font-sora font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all"

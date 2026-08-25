@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { PatientRecord } from '../types';
 import { ShieldAlert, BellRing, UserCheck, X, Video, ChevronDown, ChevronUp } from 'lucide-react';
 import { SimulatedEventVideoFeed, EventScenarioId } from './SimulatedEventVideoFeed';
+import { useAccess } from '../platform/AccessContext';
 
 interface EmergencyModalProps {
   patient: PatientRecord;
@@ -16,6 +17,8 @@ export const EmergencyModal: React.FC<EmergencyModalProps> = ({
   onDispatchNurse,
   onAcknowledgeAlert,
 }) => {
+  const access = useAccess();
+  const visiblePatient = access.displayPatient(patient);
   const [countdown, setCountdown] = useState(30);
   const [showVideoFeed, setShowVideoFeed] = useState(true);
 
@@ -63,7 +66,7 @@ export const EmergencyModal: React.FC<EmergencyModalProps> = ({
               <span className="text-xs font-tech text-red-300 font-bold">AUTO-DISPATCH IN {countdown}s</span>
             </div>
             <h3 className="text-lg sm:text-xl font-sora font-bold text-white tracking-tight mt-0.5">
-              ROOM {patient.roomNumber} • {patient.name}
+              ROOM {visiblePatient.roomNumber} • {visiblePatient.name}
             </h3>
           </div>
         </div>
@@ -103,11 +106,11 @@ export const EmergencyModal: React.FC<EmergencyModalProps> = ({
           <div className="grid grid-cols-2 gap-3 mb-2.5">
             <div>
               <span className="text-slate-400 text-[9px] block font-semibold uppercase tracking-[0.12em]">PATIENT AGE / MRN</span>
-              <span className="font-tech font-bold text-white text-xs">{patient.age} YRS • {patient.mrn}</span>
+              <span className="font-tech font-bold text-white text-xs">{visiblePatient.age} YRS • {visiblePatient.mrn}</span>
             </div>
             <div>
               <span className="text-slate-400 text-[9px] block font-semibold uppercase tracking-[0.12em]">DIAGNOSIS</span>
-              <span className="font-semibold text-white truncate block text-xs">{patient.diagnosis}</span>
+              <span className="font-semibold text-white truncate block text-xs">{visiblePatient.diagnosis}</span>
             </div>
           </div>
 
@@ -129,21 +132,24 @@ export const EmergencyModal: React.FC<EmergencyModalProps> = ({
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row items-center gap-3">
-          <button
-            onClick={onDispatchNurse}
-            className="w-full py-3 px-4 rounded-full bg-gradient-to-r from-red-600 via-pink-600 to-purple-600 hover:from-red-500 hover:to-purple-500 text-white font-sora text-xs font-semibold tracking-wider flex items-center justify-center gap-2 glow-red animate-pulse transition-all cursor-pointer shadow-xl"
-          >
-            <BellRing className="w-4 h-4" />
-            <span>DISPATCH ACUTE NEURO TEAM NOW</span>
-          </button>
-
-          <button
-            onClick={onAcknowledgeAlert}
-            className="w-full sm:w-auto py-3 px-5 rounded-full glass-pill text-slate-200 font-sora text-xs font-semibold tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0"
-          >
-            <UserCheck className="w-4 h-4 text-emerald-400" />
-            <span>ACKNOWLEDGE</span>
-          </button>
+          {access.can("dispatch") && (
+            <button
+              onClick={onDispatchNurse}
+              className="w-full py-3 px-4 rounded-full bg-gradient-to-r from-red-600 via-pink-600 to-purple-600 hover:from-red-500 hover:to-purple-500 text-white font-sora text-xs font-semibold tracking-wider flex items-center justify-center gap-2 glow-red animate-pulse transition-all cursor-pointer shadow-xl"
+            >
+              <BellRing className="w-4 h-4" />
+              <span>DISPATCH ACUTE NEURO TEAM NOW</span>
+            </button>
+          )}
+          {access.can("acknowledge") && (
+            <button
+              onClick={onAcknowledgeAlert}
+              className="w-full sm:w-auto py-3 px-5 rounded-full glass-pill text-slate-200 font-sora text-xs font-semibold tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0"
+            >
+              <UserCheck className="w-4 h-4 text-emerald-400" />
+              <span>ACKNOWLEDGE</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

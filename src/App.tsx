@@ -28,6 +28,10 @@ import { AetherPulseAgent } from './components/ai/AetherPulseAgent';
 import { AiActivityLog } from './components/ai/AiActivityLog';
 import { AgentAuditEntry, OperatorRole, PlatformSnapshot, UiCommand } from './platform/agentProtocol';
 import { fetchAgentAudit } from './lib/agentClient';
+import { AccessProvider } from './platform/AccessContext';
+import { hasCapability, parseRole } from './platform/rbac';
+
+const OPERATOR_ROLE_KEY = 'aetherpulse.operatorRole';
 
 // Web Audio API Audio Synthesizer for High-Tech Medical Telemetry Alarms
 function playTelemetryBeep(type: 'critical' | 'warning' | 'ack') {
@@ -103,7 +107,13 @@ export default function App() {
   const [showPointCloud, setShowPointCloud] = useState<boolean>(true);
   const [shareStatus, setShareStatus] = useState<string>('');
   const [roomName, setRoomName] = useState<string | null>(null);
-  const [operatorRole, setOperatorRole] = useState<OperatorRole>('administrator');
+  const [operatorRole, setOperatorRole] = useState<OperatorRole>(() => {
+    try {
+      return parseRole(localStorage.getItem(OPERATOR_ROLE_KEY) || 'administrator');
+    } catch {
+      return 'administrator';
+    }
+  });
   const [twinCommand, setTwinCommand] = useState<UiCommand | null>(null);
   const [showActivityLog, setShowActivityLog] = useState(false);
   const [activityLog, setActivityLog] = useState<AgentAuditEntry[]>([]);
@@ -151,6 +161,23 @@ export default function App() {
     }
     return history;
   });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(OPERATOR_ROLE_KEY, operatorRole);
+    } catch {
+      /* ignore quota / private mode */
+    }
+    if (!hasCapability(operatorRole, 'viewInspector') && activeView === 'inspector') {
+      setActiveView('navigator');
+    }
+    if (!hasCapability(operatorRole, 'viewNavigator') && activeView === 'navigator') {
+      setActiveView('inspector');
+    }
+    if (!hasCapability(operatorRole, 'simulateEvent')) setShowSimModal(false);
+    if (!hasCapability(operatorRole, 'viewAuditLog')) setShowActivityLog(false);
+    if (!hasCapability(operatorRole, 'screenShare')) setRoomName(null);
+  }, [operatorRole, activeView]);
 
   const selectedPatient = patients.find((p) => p.id === selectedRoomId) || patients[0];
   const criticalCount = patients.filter((p) => p.status === 'critical').length;
@@ -215,12 +242,14 @@ export default function App() {
 
   // Handler: Dispatch Nurse
   const handleDispatchNurse = useCallback(() => {
+    if (!hasCapability(operatorRole, 'dispatch')) return;
     if (!audioMuted) playTelemetryBeep('ack');
     setShowEmergencyModal(false);
-  }, [audioMuted]);
+  }, [audioMuted, operatorRole]);
 
   // Handler: Acknowledge Alert
   const handleAcknowledgeAlert = useCallback(() => {
+    if (!hasCapability(operatorRole, 'acknowledge')) return;
     if (!audioMuted) playTelemetryBeep('ack');
     setPatients((prev) =>
       prev.map((p) =>
@@ -237,10 +266,10 @@ export default function App() {
       )
     );
     setShowEmergencyModal(false);
-  }, [selectedPatient, audioMuted]);
+  }, [selectedPatient, audioMuted, operatorRole]);
 
   const handleStartScreenShare = useCallback(async () => {
-    if (!selectedPatient) return;
+    if (!selectedPatient || !hasCapability(operatorRole, 'screenShare')) return;
 
     const endpoint = `${apiBaseUrl}/api/screen-share/sessions`;
 
@@ -271,9 +300,10 @@ export default function App() {
       setShareStatus(message);
       console.error('Unable to start screen share', error);
     }
-  }, [apiBaseUrl, selectedPatient]);
+  }, [apiBaseUrl, selectedPatient, operatorRole]);
 
   const handleOverrideAlert = useCallback(async () => {
+    if (!hasCapability(operatorRole, 'overrideAlert')) return;
     try {
       await fetch(`${apiBaseUrl}/api/incidents`, {
         method: 'POST',
@@ -291,10 +321,11 @@ export default function App() {
     }
 
     handleAcknowledgeAlert();
-  }, [handleAcknowledgeAlert, selectedPatient]);
+  }, [handleAcknowledgeAlert, selectedPatient, operatorRole]);
 
   // Handler: Trigger Fall Event in Room
   const handleTriggerFall = useCallback((roomId: string) => {
+    if (!hasCapability(operatorRole, 'simulateEvent')) return;
     setPatients((prev) =>
       prev.map((p) =>
         p.id === roomId
@@ -313,10 +344,11 @@ export default function App() {
     );
     setSelectedRoomId(roomId);
     setShowEmergencyModal(true);
-  }, []);
+  }, [operatorRole]);
 
   // Handler: Trigger Pre-Exit Warning
   const handleTriggerWarning = useCallback((roomId: string) => {
+    if (!hasCapability(operatorRole, 'simulateEvent')) return;
     setPatients((prev) =>
       prev.map((p) =>
         p.id === roomId
@@ -335,14 +367,15 @@ export default function App() {
     );
     setSelectedRoomId(roomId);
     if (!audioMuted) playTelemetryBeep('warning');
-  }, [audioMuted]);
+  }, [audioMuted, operatorRole]);
 
   // Handler: Reset All
   const handleResetAll = useCallback(() => {
+    if (!hasCapability(operatorRole, 'simulateEvent')) return;
     setPatients(INITIAL_PATIENTS);
     setSelectedRoomId('room-101');
     setShowEmergencyModal(false);
-  }, []);
+  }, [operatorRole]);
 
   const applySnapshot = useCallback((snapshot: PlatformSnapshot) => {
     setPatients(snapshot.patients);
@@ -352,22 +385,36 @@ export default function App() {
 
   const applyUiCommands = useCallback((commands: UiCommand[]) => {
     commands.forEach((command) => {
-      if (command.view) setActiveView(command.view);
+      if (command.view === 'inspector' && hasCapability(operatorRole, 'viewInspector')) {
+        setActiveView('inspector');
+      } else if (command.view === 'navigator' && hasCapability(operatorRole, 'viewNavigator')) {
+        setActiveView('navigator');
+      }
       if (command.selectRoomId) setSelectedRoomId(command.selectRoomId);
-      if (command.showPointCloud !== undefined) setShowPointCloud(command.showPointCloud);
+      if (command.showPointCloud !== undefined && hasCapability(operatorRole, 'togglePointCloud')) {
+        setShowPointCloud(command.showPointCloud);
+      }
       if (command.openEmergency) setShowEmergencyModal(true);
-      if (command.radarSensitivity) setRadarSensitivity(command.radarSensitivity);
+      if (command.radarSensitivity && hasCapability(operatorRole, 'changeRadar')) {
+        setRadarSensitivity(command.radarSensitivity);
+      }
       setTwinCommand({ ...command });
     });
-  }, []);
+  }, [operatorRole]);
 
   const refreshActivityLog = useCallback(async () => {
+    if (!hasCapability(operatorRole, 'viewAuditLog')) return;
     const entries = await fetchAgentAudit();
     setActivityLog(entries);
     setShowActivityLog(true);
-  }, []);
+  }, [operatorRole]);
+
+  const showInspector = hasCapability(operatorRole, 'viewInspector');
+  const showNavigator = hasCapability(operatorRole, 'viewNavigator');
+  const inspectorLayout = activeView === 'inspector' && showInspector;
 
   return (
+    <AccessProvider role={operatorRole}>
     <div className="min-h-screen ethereal-bg text-slate-100 font-sans grid-pattern flex flex-col selection:bg-cyan-500 selection:text-slate-950">
       {/* Top Command Header */}
       <Header
@@ -378,16 +425,20 @@ export default function App() {
         activeView={activeView}
         onSelectView={setActiveView}
         onToggleAudio={() => setAudioMuted((prev) => !prev)}
-        onOpenSimModal={() => setShowSimModal(true)}
+        onOpenSimModal={() => {
+          if (hasCapability(operatorRole, 'simulateEvent')) setShowSimModal(true);
+        }}
         radarSensitivity={radarSensitivity}
-        onChangeRadarSensitivity={(val) => setRadarSensitivity(val)}
+        onChangeRadarSensitivity={(val) => {
+          if (hasCapability(operatorRole, 'changeRadar')) setRadarSensitivity(val);
+        }}
         operatorRole={operatorRole}
         onChangeRole={setOperatorRole}
         onOpenActivityLog={() => void refreshActivityLog()}
       />
 
       {/* Main Container View Switcher */}
-      {activeView === 'navigator' ? (
+      {!inspectorLayout && showNavigator ? (
         <main className="flex-1 max-w-[1920px] mx-auto w-full">
           <LiveRoomNavigator patients={patients} />
         </main>
@@ -410,10 +461,16 @@ export default function App() {
                 patient={selectedPatient}
                 onDispatchNurse={handleDispatchNurse}
                 onAcknowledgeAlert={handleAcknowledgeAlert}
-                onTriggerIntercom={() => playTelemetryBeep('ack')}
+                onTriggerIntercom={() => {
+                  if (hasCapability(operatorRole, 'intercom')) playTelemetryBeep('ack');
+                }}
                 onStartScreenShare={handleStartScreenShare}
                 showPointCloud={showPointCloud}
-                onTogglePointCloud={() => setShowPointCloud((prev) => !prev)}
+                onTogglePointCloud={() => {
+                  if (hasCapability(operatorRole, 'togglePointCloud')) {
+                    setShowPointCloud((prev) => !prev);
+                  }
+                }}
               />
 
               {/* 3D WebGL Digital Twin Viewport */}
@@ -426,28 +483,34 @@ export default function App() {
 
             {/* Right Column: Real-Time Telemetry & Fall Verification */}
             <div className="lg:col-span-4 h-full flex flex-col gap-4">
-              <TelemetryFeed
-                patient={selectedPatient}
-                telemetryHistory={telemetryHistory}
-              />
+              {hasCapability(operatorRole, 'viewTelemetry') && (
+                <TelemetryFeed
+                  patient={selectedPatient}
+                  telemetryHistory={telemetryHistory}
+                />
+              )}
 
-              <FallFSMSequence
-                stages={fsmStages}
-                patient={selectedPatient}
-                onVerifyAlert={handleDispatchNurse}
-                onOverrideAlert={handleOverrideAlert}
-              />
+              {hasCapability(operatorRole, 'viewFsm') && (
+                <FallFSMSequence
+                  stages={fsmStages}
+                  patient={selectedPatient}
+                  onVerifyAlert={handleDispatchNurse}
+                  onOverrideAlert={handleOverrideAlert}
+                />
+              )}
             </div>
           </div>
 
-          {/* Bottom Monitoring Row: Predictive AI Forecast & Edge Hardware Mesh */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-2">
-            {/* Predictive Deterioration Bar Chart */}
-            <PredictiveDeteriorationChart data={deteriorationData} />
-
-            {/* Edge Node & Wearable Hardware Status Panel */}
-            <EdgeNodePanel nodes={edgeNodes} />
-          </div>
+          {(hasCapability(operatorRole, 'viewPredictive') || hasCapability(operatorRole, 'viewHardware')) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-2">
+              {hasCapability(operatorRole, 'viewPredictive') && (
+                <PredictiveDeteriorationChart data={deteriorationData} />
+              )}
+              {hasCapability(operatorRole, 'viewHardware') && (
+                <EdgeNodePanel nodes={edgeNodes} />
+              )}
+            </div>
+          )}
         </main>
       )}
 
@@ -472,7 +535,7 @@ export default function App() {
         </div>
       )}
 
-      {roomName && (
+      {roomName && hasCapability(operatorRole, 'screenShare') && (
         <div className="fixed inset-4 z-40 rounded-2xl border border-cyan-500/40 bg-slate-950/95 p-3 shadow-2xl backdrop-blur-xl lg:inset-8">
           <div className="flex items-center justify-between pb-3">
             <div>
@@ -491,7 +554,7 @@ export default function App() {
       )}
 
       {/* Simulation Drawer Modal */}
-      {showSimModal && (
+      {showSimModal && hasCapability(operatorRole, 'simulateEvent') && (
         <SimulationControlsModal
           patients={patients}
           selectedRoomId={selectedRoomId}
@@ -502,11 +565,11 @@ export default function App() {
         />
       )}
 
-      {showActivityLog && (
+      {showActivityLog && hasCapability(operatorRole, 'viewAuditLog') && (
         <AiActivityLog entries={activityLog} onClose={() => setShowActivityLog(false)} />
       )}
 
-      {!isLoading && (
+      {!isLoading && hasCapability(operatorRole, 'useAiAgent') && (
         <AetherPulseAgent
           role={operatorRole}
           userId={`op-${operatorRole}`}
@@ -517,5 +580,6 @@ export default function App() {
         />
       )}
     </div>
+    </AccessProvider>
   );
 }

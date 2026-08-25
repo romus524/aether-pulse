@@ -7,7 +7,9 @@ import { FacilityMap } from '../components/facility/FacilityMap';
 import { RoomGrid } from '../components/facility/RoomGrid';
 import { PatientInspectorDrawer } from '../components/facility/PatientInspectorDrawer';
 import { DispatchModal } from '../components/facility/DispatchModal';
-import { Map, LayoutGrid, Columns, Radio, ShieldCheck, Activity, Send } from 'lucide-react';
+import { Map, LayoutGrid, Columns, Radio, ShieldCheck, Activity } from 'lucide-react';
+import { useAccess } from '../platform/AccessContext';
+import { redactFacilityRoom } from '../platform/rbac';
 
 interface LiveRoomNavigatorProps {
   onAddAuditLog?: (action: string, category: 'SYSTEM' | 'PATIENT' | 'HARDWARE' | 'DISPATCH', room?: string) => void;
@@ -47,6 +49,7 @@ export const LiveRoomNavigator: React.FC<LiveRoomNavigatorProps> = ({
   onAddAuditLog,
   patients,
 }) => {
+  const access = useAccess();
   const [floors, setFloors] = useState<Floor[]>(INITIAL_FLOORS);
   const [activeFloorId, setActiveFloorId] = useState<string>('ward-4b'); // Default to Ward 4B (Acute Neuro)
   const [selectedRoomId, setSelectedRoomId] = useState<string>('room-104'); // Default select Room 104 (Critical Fall Event)
@@ -99,10 +102,19 @@ export const LiveRoomNavigator: React.FC<LiveRoomNavigatorProps> = ({
     );
   }, [patients]);
 
+  const visibleFloors = useMemo(
+    () =>
+      floors.map((floor) => ({
+        ...floor,
+        rooms: floor.rooms.map((room) => redactFacilityRoom(room, access.role)),
+      })),
+    [floors, access.role],
+  );
+
   // Active Floor reference
   const activeFloor = useMemo(() => {
-    return floors.find((f) => f.id === activeFloorId) || floors[0];
-  }, [floors, activeFloorId]);
+    return visibleFloors.find((f) => f.id === activeFloorId) || visibleFloors[0];
+  }, [visibleFloors, activeFloorId]);
 
   // Selected Room reference
   const selectedRoom = useMemo(() => {
@@ -165,6 +177,7 @@ export const LiveRoomNavigator: React.FC<LiveRoomNavigatorProps> = ({
 
   // Clear Status Handler (Acknowledge Alert)
   const handleClearRoomStatus = (roomId: string) => {
+    if (!access.can('acknowledge')) return;
     setFloors((prevFloors) =>
       prevFloors.map((floor) => ({
         ...floor,
@@ -183,6 +196,7 @@ export const LiveRoomNavigator: React.FC<LiveRoomNavigatorProps> = ({
 
   // Confirm Dispatch Handler
   const handleConfirmDispatch = (roomId: string, team: string, priority: string, _notes: string) => {
+    if (!access.can('dispatch')) return;
     const timeStr = new Date().toLocaleTimeString();
 
     setFloors((prevFloors) =>
@@ -234,7 +248,10 @@ export const LiveRoomNavigator: React.FC<LiveRoomNavigatorProps> = ({
         onSearchChange={setSearchQuery}
         onStatusFilterChange={setStatusFilter}
         onHighRiskToggle={setHighRiskOnly}
-        onOpenDispatchModal={() => setDispatchRoom(selectedRoom || activeFloor.rooms[0])}
+        onOpenDispatchModal={() => {
+          if (!access.can('dispatch')) return;
+          setDispatchRoom(selectedRoom || activeFloor.rooms[0]);
+        }}
         onClearFilters={handleClearFilters}
       />
 
@@ -334,7 +351,9 @@ export const LiveRoomNavigator: React.FC<LiveRoomNavigatorProps> = ({
                 rooms={filteredRooms}
                 selectedRoomId={selectedRoomId}
                 onSelectRoom={handleSelectRoom}
-                onDispatchModal={(room) => setDispatchRoom(room)}
+                onDispatchModal={(room) => {
+                  if (access.can('dispatch')) setDispatchRoom(room);
+                }}
               />
             </div>
           </div>
@@ -359,7 +378,9 @@ export const LiveRoomNavigator: React.FC<LiveRoomNavigatorProps> = ({
               rooms={filteredRooms}
               selectedRoomId={selectedRoomId}
               onSelectRoom={handleSelectRoom}
-              onDispatchModal={(room) => setDispatchRoom(room)}
+              onDispatchModal={(room) => {
+                if (access.can('dispatch')) setDispatchRoom(room);
+              }}
             />
           </div>
         )}
@@ -370,13 +391,15 @@ export const LiveRoomNavigator: React.FC<LiveRoomNavigatorProps> = ({
         <PatientInspectorDrawer
           room={selectedRoom}
           onClose={() => setIsInspectorOpen(false)}
-          onDispatchModal={(room) => setDispatchRoom(room)}
+          onDispatchModal={(room) => {
+            if (access.can('dispatch')) setDispatchRoom(room);
+          }}
           onClearRoomStatus={handleClearRoomStatus}
         />
       )}
 
       {/* Emergency Dispatch Modal */}
-      {dispatchRoom && (
+      {dispatchRoom && access.can('dispatch') && (
         <DispatchModal
           room={dispatchRoom}
           floorName={activeFloor.name}

@@ -22,6 +22,7 @@ import { SpatialEnvironment } from './3d/SpatialEnvironment';
 import { GhostPathReplay } from './3d/GhostPathReplay';
 import { EventPulseField } from './3d/EventPulseField';
 import { TwinEventMarkerHint, TwinPlaybackBar } from './3d/TwinPlaybackBar';
+import { useAccess } from '../platform/AccessContext';
 import {
   findEventTime,
   getPlaybackSpatialState,
@@ -107,6 +108,7 @@ export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({
   showPointCloud: initialShowPointCloud = true,
   twinCommand = null,
 }) => {
+  const access = useAccess();
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>('iso');
   const [playbackNotice, setPlaybackNotice] = useState<string | null>(null);
   const [showWavefronts, setShowWavefronts] = useState(true);
@@ -473,6 +475,7 @@ export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({
             <span className="hidden sm:inline text-slate-400">HRV {patient.hrv} ms</span>
           </div>
         </div>
+        {access.can('twinPlayback') && (
         <TwinPlaybackBar
           scenario={scenario}
           currentTime={currentTime}
@@ -501,6 +504,7 @@ export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({
             setIsLive(false);
           }}
         />
+        )}
       </div>
     </div>
   );

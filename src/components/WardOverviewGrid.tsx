@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { PatientRecord } from '../types';
 import { Search, ChevronRight, AlertTriangle, ShieldAlert, Heart, Wind, Radio, User, Activity } from 'lucide-react';
+import { useAccess } from '../platform/AccessContext';
 
 interface WardOverviewGridProps {
   patients: PatientRecord[];
@@ -13,6 +14,7 @@ export const WardOverviewGrid: React.FC<WardOverviewGridProps> = ({
   selectedRoomId,
   onSelectRoom,
 }) => {
+  const access = useAccess();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'critical' | 'high-risk'>('all');
 
@@ -114,6 +116,7 @@ export const WardOverviewGrid: React.FC<WardOverviewGridProps> = ({
         data-lenis-prevent="true"
       >
         {filteredPatients.map((patient) => {
+          const visible = access.displayPatient(patient);
           const isSelected = patient.id === selectedRoomId;
           const isCritical = patient.status === 'critical';
           const isWarning = patient.status === 'warning';
@@ -154,7 +157,7 @@ export const WardOverviewGrid: React.FC<WardOverviewGridProps> = ({
                     ROOM {patient.roomNumber}
                   </span>
                   <span className="text-sm font-sora font-semibold text-white tracking-tight truncate">
-                    {patient.name}
+                    {visible.name}
                   </span>
                   <span className="text-[10px] text-slate-400 font-tech shrink-0">
                     ({patient.age}{patient.gender[0]})
@@ -181,7 +184,7 @@ export const WardOverviewGrid: React.FC<WardOverviewGridProps> = ({
 
               {/* Patient Diagnosis (Single clean line with ellipsis) */}
               <div className="text-[10px] font-tech text-slate-400 uppercase tracking-wider mb-2.5 truncate">
-                {patient.diagnosis}
+                {visible.diagnosis}
               </div>
 
               {/* Streamlined 3-Column Tabular Vital Sign Grid (No duplicate blob noise) */}

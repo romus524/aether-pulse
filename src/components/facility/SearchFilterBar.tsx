@@ -1,6 +1,7 @@
 import React from 'react';
-import { Search, Send, X, AlertTriangle, Radio } from 'lucide-react';
+import { Search, Send, X, AlertTriangle } from 'lucide-react';
 import { FacilityRoom } from '../../types';
+import { useAccess } from '../../platform/AccessContext';
 
 interface SearchFilterBarProps {
   rooms: FacilityRoom[];
@@ -25,6 +26,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
   onOpenDispatchModal,
   onClearFilters,
 }) => {
+  const access = useAccess();
   const totalCount = rooms.length;
   const normalCount = rooms.filter((r) => r.status === 'normal').length;
   const warningCount = rooms.filter((r) => r.status === 'warning').length;
@@ -46,7 +48,9 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search room (e.g. 104), patient name, MRN, diagnosis, physician..."
+          placeholder={access.can('viewPhi')
+            ? 'Search room (e.g. 104), patient name, MRN, diagnosis, physician...'
+            : 'Search room number (e.g. 104)...'}
           className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-slate-950/80 border border-white/10 text-white text-xs placeholder-slate-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all font-medium shadow-inner"
         />
         {searchQuery && (
@@ -164,7 +168,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
         )}
       </div>
 
-      {/* 3. Action Button: DISPATCH STAFF */}
+      {access.can('dispatch') && (
       <button
         id="btn-dispatch-staff-primary"
         onClick={onOpenDispatchModal}
@@ -173,6 +177,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
         <Send className="w-3.5 h-3.5 fill-current text-cyan-300" />
         <span>DISPATCH STAFF</span>
       </button>
+      )}
     </div>
   );
 };

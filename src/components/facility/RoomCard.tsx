@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FacilityRoom } from '../../types';
 import { User, Send, Clock, Eye } from 'lucide-react';
+import { useAccess } from '../../platform/AccessContext';
 
 interface RoomCardProps {
   room: FacilityRoom;
@@ -15,6 +16,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({
   onSelectRoom,
   onDispatchModal,
 }) => {
+  const access = useAccess();
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   // Live elapsed counter since entered state
@@ -210,6 +212,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({
             <span>INSPECT</span>
           </button>
 
+          {access.can('dispatch') && (
           <button
             id={`btn-dispatch-${room.roomNumber}`}
             type="button"
@@ -228,6 +231,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({
           >
             <Send className="w-3.5 h-3.5" />
           </button>
+          )}
         </div>
       </div>
     </div>

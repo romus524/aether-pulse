@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Floor } from '../../types';
 import { FloorBlueprint } from './FloorBlueprint';
 import { RoomMarker } from './RoomMarker';
-import { MapControls } from './MapControls';
 import { MapLegend } from './MapLegend';
 import { FacilityMapHUD } from './FacilityMapHUD';
 
@@ -27,7 +26,10 @@ export const FacilityMap: React.FC<FacilityMapProps> = ({
   const [zoom, setZoom] = useState<number>(1.0);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const dragRef = useRef({ x: 0, y: 0, lastX: 0, lastY: 0, velocityX: 0, velocityY: 0 });
+  const pinchRef = useRef<{ distance: number; zoom: number; pan: { x: number; y: number } } | null>(null);
+  const momentumFrameRef = useRef<number | null>(null);
 
   const { width, height } = floor.dimensions;
   const hasActiveSearchOrFilter = searchQuery.trim().length > 0 || statusFilter !== 'ALL';
@@ -52,89 +54,139 @@ export const FacilityMap: React.FC<FacilityMapProps> = ({
     setPan({ x: 0, y: 0 });
   }, [floor.id]);
 
-  // Gentle auto-centering on selected room when zoomed in
+  // Focus a room only when the selection changes, so manual navigation remains stable.
   useEffect(() => {
     if (!selectedRoomId) return;
     const selectedRoom = floor.rooms.find((r) => r.id === selectedRoomId);
     if (!selectedRoom) return;
 
-    if (zoom > 1.1) {
-      const roomCenterX = selectedRoom.position.x + selectedRoom.position.width / 2;
-      const roomCenterY = selectedRoom.position.y + selectedRoom.position.height / 2;
+    const focusZoom = Math.max(zoom, 1.25);
+    const roomCenterX = selectedRoom.position.x + selectedRoom.position.width / 2;
+    const roomCenterY = selectedRoom.position.y + selectedRoom.position.height / 2;
+    setZoom(focusZoom);
+    setPan(clampPan((width / 2 - roomCenterX) * 0.5, (height / 2 - roomCenterY) * 0.5, focusZoom));
+  }, [selectedRoomId, floor, width, height, clampPan]);
 
-      const targetPanX = (width / 2 - roomCenterX) * 0.5;
-      const targetPanY = (height / 2 - roomCenterY) * 0.5;
+  const stopMomentum = useCallback(() => {
+    if (momentumFrameRef.current !== null) cancelAnimationFrame(momentumFrameRef.current);
+    momentumFrameRef.current = null;
+  }, []);
 
-      setPan(clampPan(targetPanX, targetPanY, zoom));
+  useEffect(() => () => stopMomentum(), [stopMomentum]);
+
+  const getMapPoint = (clientX: number, clientY: number) => {
+    const bounds = containerRef.current?.getBoundingClientRect();
+    if (!bounds) return { x: width / 2, y: height / 2 };
+    return {
+      x: ((clientX - bounds.left) / bounds.width) * width,
+      y: ((clientY - bounds.top) / bounds.height) * height,
+    };
+  };
+
+  const zoomAtPoint = useCallback((nextZoom: number, clientX: number, clientY: number) => {
+    setZoom((currentZoom) => {
+      const boundedZoom = Math.max(0.85, Math.min(3, nextZoom));
+      const point = getMapPoint(clientX, clientY);
+      setPan((currentPan) => {
+        const nextPan = {
+          x: point.x - (point.x - (width / 2 + currentPan.x)) * (boundedZoom / currentZoom) - width / 2,
+          y: point.y - (point.y - (height / 2 + currentPan.y)) * (boundedZoom / currentZoom) - height / 2,
+        };
+        return boundedZoom <= 1 ? { x: 0, y: 0 } : clampPan(nextPan.x, nextPan.y, boundedZoom);
+      });
+      return boundedZoom;
+    });
+  }, [clampPan, height, width]);
+
+  const handleWheel = (event: React.WheelEvent) => {
+    event.preventDefault();
+    stopMomentum();
+    const scale = Math.exp(-event.deltaY * 0.0015);
+    zoomAtPoint(zoom * scale, event.clientX, event.clientY);
+  };
+
+  const handlePointerDown = (event: React.PointerEvent) => {
+    if ((event.target as HTMLElement).closest('.room-marker')) return;
+    stopMomentum();
+    pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    event.currentTarget.setPointerCapture(event.pointerId);
+
+    if (pointersRef.current.size === 1) {
+      dragRef.current = { x: pan.x, y: pan.y, lastX: event.clientX, lastY: event.clientY, velocityX: 0, velocityY: 0 };
+      setIsDragging(true);
+    } else if (pointersRef.current.size === 2) {
+      const points = [...pointersRef.current.values()];
+      pinchRef.current = {
+        distance: Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y),
+        zoom,
+        pan,
+      };
     }
-  }, [selectedRoomId, floor, width, height, zoom, clampPan]);
-
-  // Zoom handlers clamped 0.8 -> 3.0
-  const handleZoomIn = useCallback(() => {
-    setZoom((prev) => {
-      const next = Math.min(3.0, Number((prev + 0.25).toFixed(2)));
-      return next;
-    });
-  }, []);
-
-  const handleZoomOut = useCallback(() => {
-    setZoom((prev) => {
-      const next = Math.max(0.8, Number((prev - 0.25).toFixed(2)));
-      if (next <= 1.0) setPan({ x: 0, y: 0 });
-      return next;
-    });
-  }, []);
-
-  const handleReset = useCallback(() => {
-    setZoom(1.0);
-    setPan({ x: 0, y: 0 });
-  }, []);
-
-  const handleFit = useCallback(() => {
-    setZoom(1.0);
-    setPan({ x: 0, y: 0 });
-  }, []);
-
-  // Mouse Wheel Zooming
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.15 : 0.15;
-    setZoom((prev) => {
-      const next = Math.max(0.8, Math.min(3.0, Number((prev + delta).toFixed(2))));
-      if (next <= 1.0) setPan({ x: 0, y: 0 });
-      return next;
-    });
   };
 
-  // Click & Drag Panning Handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.room-marker')) return;
-    if (zoom <= 1.0) return; // Only pan when zoomed in
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-  };
+  const handlePointerMove = (event: React.PointerEvent) => {
+    if (!pointersRef.current.has(event.pointerId)) return;
+    pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const points = [...pointersRef.current.values()];
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+    if (points.length >= 2 && pinchRef.current) {
+      const distance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+      const midpoint = { x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 };
+      zoomAtPoint(pinchRef.current.zoom * (distance / pinchRef.current.distance), midpoint.x, midpoint.y);
+      return;
+    }
+
     if (!isDragging) return;
-    const newX = e.clientX - dragStart.x;
-    const newY = e.clientY - dragStart.y;
-    setPan(clampPan(newX, newY, zoom));
+    const deltaX = event.clientX - dragRef.current.lastX;
+    const deltaY = event.clientY - dragRef.current.lastY;
+    dragRef.current.lastX = event.clientX;
+    dragRef.current.lastY = event.clientY;
+    dragRef.current.velocityX = deltaX;
+    dragRef.current.velocityY = deltaY;
+    const scaleX = width / (containerRef.current?.clientWidth || width);
+    const scaleY = height / (containerRef.current?.clientHeight || height);
+    dragRef.current.x += deltaX * scaleX;
+    dragRef.current.y += deltaY * scaleY;
+    setPan(clampPan(dragRef.current.x, dragRef.current.y, zoom));
   };
 
-  const handleMouseUp = () => {
+  const handlePointerUp = (event: React.PointerEvent) => {
+    pointersRef.current.delete(event.pointerId);
+    if (pointersRef.current.size < 2) pinchRef.current = null;
+    if (pointersRef.current.size > 0) {
+      const remainingPoint = [...pointersRef.current.values()][0];
+      dragRef.current.lastX = remainingPoint.x;
+      dragRef.current.lastY = remainingPoint.y;
+      dragRef.current.velocityX = 0;
+      dragRef.current.velocityY = 0;
+      return;
+    }
     setIsDragging(false);
+
+    let velocityX = dragRef.current.velocityX * 0.7;
+    let velocityY = dragRef.current.velocityY * 0.7;
+    const animateMomentum = () => {
+      velocityX *= 0.9;
+      velocityY *= 0.9;
+      if (Math.abs(velocityX) < 0.15 && Math.abs(velocityY) < 0.15) return;
+      dragRef.current.x += velocityX * (width / (containerRef.current?.clientWidth || width));
+      dragRef.current.y += velocityY * (height / (containerRef.current?.clientHeight || height));
+      setPan(clampPan(dragRef.current.x, dragRef.current.y, zoom));
+      momentumFrameRef.current = requestAnimationFrame(animateMomentum);
+    };
+    momentumFrameRef.current = requestAnimationFrame(animateMomentum);
   };
 
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full min-h-[520px] lg:min-h-[620px] rounded-2xl glass-panel glass-specular border border-white/10 overflow-hidden shadow-2xl select-none flex flex-col justify-between bg-[#050611]"
+      className="relative w-full h-full min-h-[520px] lg:min-h-[620px] rounded-2xl glass-panel glass-specular border border-white/10 overflow-hidden shadow-2xl select-none flex flex-col justify-between bg-[#050611] touch-none"
       onWheel={handleWheel}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      style={{ cursor: isDragging ? 'grabbing' : zoom > 1.0 ? 'grab' : 'default' }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
     >
       {/* Upper Map HUD */}
       <FacilityMapHUD floor={floor} />
@@ -147,7 +199,7 @@ export const FacilityMap: React.FC<FacilityMapProps> = ({
           preserveAspectRatio="xMidYMid meet"
         >
           <g
-            className="map-content-viewport transition-transform duration-200 ease-out"
+            className={`map-content-viewport ${isDragging ? '' : 'transition-transform duration-200 ease-out'}`}
             style={{
               transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
               transformOrigin: `${width / 2}px ${height / 2}px`,
@@ -182,14 +234,6 @@ export const FacilityMap: React.FC<FacilityMapProps> = ({
       {/* Floating Map Legend */}
       <MapLegend />
 
-      {/* Floating Map Pan/Zoom Controls */}
-      <MapControls
-        zoom={zoom}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onReset={handleReset}
-        onFit={handleFit}
-      />
     </div>
   );
 };

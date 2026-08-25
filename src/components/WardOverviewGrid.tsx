@@ -39,7 +39,7 @@ export const WardOverviewGrid: React.FC<WardOverviewGridProps> = ({
   return (
     <div
       id="ward-overview-panel"
-      className="glass-panel glass-specular p-4 rounded-2xl border border-white/10 flex flex-col h-full shadow-2xl overflow-hidden"
+      className="glass-panel p-4 rounded-xl border border-white/10 flex flex-col h-full shadow-lg overflow-hidden"
     >
       {/* Editorial Header & Quick Summary */}
       <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/5">
@@ -124,11 +124,11 @@ export const WardOverviewGrid: React.FC<WardOverviewGridProps> = ({
               onClick={() => onSelectRoom(patient.id)}
               className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${
                 isCritical
-                  ? 'bg-red-950/30 border-red-500/70 shadow-[0_0_20px_rgba(239,68,68,0.25)] ring-1 ring-red-500/50'
+                  ? 'bg-red-950/35 border-red-500/60 ring-1 ring-red-500/30'
                   : isWarning
-                  ? 'bg-amber-950/25 border-amber-500/60 shadow-[0_0_15px_rgba(245,158,11,0.15)]'
+                  ? 'bg-amber-950/25 border-amber-500/50'
                   : isSelected
-                  ? 'bg-slate-900/90 border-purple-400/80 shadow-[0_0_20px_rgba(168,85,247,0.25)] ring-1 ring-purple-400/40 translate-y-[-1px]'
+                  ? 'bg-slate-900/95 border-purple-400/70 ring-1 ring-purple-400/30 translate-y-[-1px]'
                   : 'bg-[#0d1322]/80 border-white/10 hover:border-white/20 hover:bg-[#11192e]/90'
               }`}
             >

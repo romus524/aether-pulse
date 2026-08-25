@@ -58,7 +58,7 @@ export const RoomGrid: React.FC<RoomGridProps> = ({
   return (
     <div className="w-full space-y-4">
       {/* Grid Controls Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl glass-panel border border-white/10 shadow-xl backdrop-blur-xl">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl glass-panel border border-white/10 shadow-md backdrop-blur-xl">
         <div className="flex items-center gap-2">
           <span className="text-xs font-sora font-semibold text-slate-300">
             SHOWING <strong className="text-purple-300">{sortedRooms.length}</strong> ROOMS

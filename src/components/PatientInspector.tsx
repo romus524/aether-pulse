@@ -191,9 +191,9 @@ export const PatientInspector: React.FC<PatientInspectorProps> = ({
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={onDispatchNurse}
-            className={`px-4 py-2 rounded-full font-sora text-xs font-semibold tracking-wide flex items-center gap-2 transition-all cursor-pointer ${
+            className={`h-9 px-3 rounded-lg font-sora text-xs font-semibold tracking-wide flex items-center gap-2 transition-all cursor-pointer ${
               isCritical 
-                ? 'bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white shadow-lg glow-red animate-bounce' 
+                ? 'bg-red-600 hover:bg-red-500 text-white shadow-md animate-pulse' 
                 : 'glass-button-primary text-white'
             }`}
           >
@@ -203,7 +203,7 @@ export const PatientInspector: React.FC<PatientInspectorProps> = ({
 
           <button
             onClick={onTriggerIntercom}
-            className="glass-pill px-4 py-2 text-slate-200 font-sora text-xs font-semibold tracking-wide flex items-center gap-2 transition-all cursor-pointer"
+            className="glass-pill h-9 px-3 text-slate-300 font-sora text-xs font-semibold tracking-wide flex items-center gap-2 transition-all cursor-pointer"
           >
             <Phone className="w-3.5 h-3.5 text-cyan-400" />
             <span>BEDSIDE INTERCOM</span>
@@ -211,7 +211,7 @@ export const PatientInspector: React.FC<PatientInspectorProps> = ({
 
           <button
             onClick={onStartScreenShare}
-            className="glass-pill px-4 py-2 text-slate-200 font-sora text-xs font-semibold tracking-wide flex items-center gap-2 transition-all cursor-pointer"
+            className="glass-pill h-9 px-3 text-slate-300 font-sora text-xs font-semibold tracking-wide flex items-center gap-2 transition-all cursor-pointer"
           >
             <MonitorUp className="w-3.5 h-3.5 text-violet-400" />
             <span>START SCREEN SHARE</span>
@@ -220,7 +220,7 @@ export const PatientInspector: React.FC<PatientInspectorProps> = ({
           {isCritical && (
             <button
               onClick={onAcknowledgeAlert}
-              className="px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-sora text-xs font-semibold tracking-wide flex items-center gap-2 transition-all glow-emerald cursor-pointer"
+              className="h-9 px-3 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-sora text-xs font-semibold tracking-wide flex items-center gap-2 transition-all cursor-pointer"
             >
               <UserCheck className="w-3.5 h-3.5" />
               <span>ACKNOWLEDGE ALERT</span>
@@ -231,9 +231,9 @@ export const PatientInspector: React.FC<PatientInspectorProps> = ({
         {/* Toggle 3D Point Cloud Overlay */}
         <button
           onClick={onTogglePointCloud}
-          className={`px-3.5 py-1.5 rounded-full border font-sora text-xs font-semibold tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
+          className={`h-9 px-3 rounded-lg border font-sora text-xs font-semibold tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
             showPointCloud
-              ? 'bg-purple-950/80 border-purple-500/60 text-purple-200 glow-purple'
+              ? 'bg-slate-800 border-purple-400/50 text-purple-200'
               : 'glass-pill text-slate-400 hover:text-slate-200'
           }`}
         >

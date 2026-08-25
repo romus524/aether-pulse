@@ -22,16 +22,16 @@ export const FloorNavigator: React.FC<FloorNavigatorProps> = ({
   return (
     <div className="w-full space-y-4">
       {/* Top Header & Facility KPI Strip */}
-      <div className="p-4 rounded-2xl glass-panel glass-specular border border-white/10 shadow-2xl backdrop-blur-xl flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+      <div className="p-4 rounded-xl glass-panel border border-white/10 shadow-lg backdrop-blur-xl flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
-          <div className="relative w-12 h-12 rounded-2xl bg-purple-950/80 border border-purple-500/40 shadow-lg shadow-purple-950/60 overflow-hidden p-1 group shrink-0">
+          <div className="relative w-12 h-12 rounded-xl bg-slate-950/80 border border-purple-500/30 overflow-hidden p-1 group shrink-0">
             <img 
               src={aetherPulseLogo} 
               alt="Aether Pulse Care Logo" 
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover rounded-xl transition-transform duration-300 group-hover:scale-110" 
             />
-            <div className="absolute inset-0 rounded-2xl border border-purple-400/30 animate-pulse pointer-events-none" />
+            <div className="absolute inset-0 rounded-xl border border-purple-400/20 pointer-events-none" />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -157,7 +157,7 @@ export const FloorNavigator: React.FC<FloorNavigatorProps> = ({
               onClick={() => onSelectFloor(floor.id)}
               className={`px-4 py-2.5 rounded-xl text-xs font-sora font-bold transition-all duration-300 flex items-center gap-2.5 shrink-0 cursor-pointer ${
                 isActive
-                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/40 ring-1 ring-purple-400 border border-purple-400'
+                  ? 'bg-purple-700 text-white shadow-sm ring-1 ring-purple-400/60 border border-purple-400/60'
                   : 'glass-pill hover:bg-white/10 text-slate-300 hover:text-white border border-white/5'
               }`}
             >

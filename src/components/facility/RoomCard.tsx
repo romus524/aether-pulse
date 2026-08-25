@@ -95,7 +95,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({
       onClick={() => onSelectRoom(room.id)}
       className={`relative group rounded-2xl glass-card transition-all duration-300 cursor-pointer overflow-hidden p-3.5 border flex flex-col justify-between backdrop-blur-xl ${
         isSelected
-          ? 'border-purple-400 shadow-[0_0_25px_rgba(168,85,247,0.35)] ring-1 ring-purple-400/60 bg-gradient-to-b from-purple-950/30 via-slate-950/95 to-slate-950'
+          ? 'border-purple-400/70 ring-1 ring-purple-400/35 bg-slate-900/95'
           : stateConfig.border
       }`}
     >

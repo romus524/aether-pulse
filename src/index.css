@@ -38,16 +38,12 @@
 
   /* Refined Ethereal Deep Background */
   .ethereal-bg {
-    background-color: #060711;
+    background-color: #0b0f19;
     background-image: 
-      radial-gradient(ellipse 60% 40% at 15% 15%, rgba(124, 56, 181, 0.18) 0%, transparent 60%),
-      radial-gradient(ellipse 50% 35% at 85% 12%, rgba(216, 76, 255, 0.14) 0%, transparent 55%),
-      radial-gradient(ellipse 70% 50% at 50% 50%, rgba(73, 232, 255, 0.08) 0%, transparent 65%),
-      radial-gradient(ellipse 60% 40% at 75% 85%, rgba(155, 92, 255, 0.14) 0%, transparent 60%),
-      radial-gradient(ellipse 50% 40% at 20% 80%, rgba(52, 211, 153, 0.06) 0%, transparent 50%),
-      linear-gradient(to right, rgba(255, 255, 255, 0.012) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.012) 1px, transparent 1px);
-    background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+      radial-gradient(ellipse 70% 55% at 50% 0%, rgba(56, 75, 110, 0.12) 0%, transparent 70%),
+      linear-gradient(to right, rgba(148, 163, 184, 0.018) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(148, 163, 184, 0.018) 1px, transparent 1px);
+    background-size: 100% 100%, 32px 32px, 32px 32px;
     background-attachment: fixed;
   }
 
@@ -102,25 +98,20 @@
 
   /* Glass Header */
   .glass-header {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.09) 0%,
-      rgba(35, 23, 75, 0.35) 45%,
-      rgba(15, 10, 36, 0.45) 100%
-    );
-    backdrop-filter: blur(28px) saturate(150%);
-    -webkit-backdrop-filter: blur(28px) saturate(150%);
-    border-bottom: 1px solid rgba(190, 175, 255, 0.18);
-    box-shadow: 0 16px 45px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    background: rgba(15, 23, 42, 0.94);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
   }
 
   /* Glow Utilities */
   .glow-purple {
-    box-shadow: 0 0 25px rgba(168, 85, 247, 0.35), inset 0 0 15px rgba(168, 85, 247, 0.12);
+    box-shadow: 0 0 0 1px rgba(168, 85, 247, 0.28);
   }
 
   .glow-cyan {
-    box-shadow: 0 0 25px rgba(73, 232, 255, 0.35), inset 0 0 15px rgba(73, 232, 255, 0.12);
+    box-shadow: 0 0 0 1px rgba(73, 232, 255, 0.28);
   }
 
   .glow-red {
@@ -128,11 +119,11 @@
   }
 
   .glow-emerald {
-    box-shadow: 0 0 20px rgba(52, 211, 153, 0.35), inset 0 0 12px rgba(52, 211, 153, 0.12);
+    box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.28);
   }
 
   .glow-amber {
-    box-shadow: 0 0 20px rgba(245, 158, 11, 0.35), inset 0 0 12px rgba(245, 158, 11, 0.12);
+    box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.28);
   }
 }
 
@@ -172,4 +163,105 @@
 
 .animate-soft-pulse {
   animation: softPulse 3s infinite ease-in-out;
+}
+
+/* AetherPulse theme for the embedded n8n assistant */
+.n8n-chat {
+  --chat--color--primary: #a855f7;
+  --chat--color--primary-shade-50: #9333ea;
+  --chat--color--primary--shade-100: #7e22ce;
+  --chat--color--secondary: #06b6d4;
+  --chat--color-secondary-shade-50: #0891b2;
+  --chat--color-white: #f8fafc;
+  --chat--color-light: #15122d;
+  --chat--color-light-shade-50: rgba(255, 255, 255, 0.12);
+  --chat--color-light-shade-100: rgba(255, 255, 255, 0.18);
+  --chat--color-dark: #0d0b1e;
+  --chat--color-disabled: #64748b;
+  --chat--color-typing: #cbd5e1;
+  --chat--font-family: 'Sora', sans-serif;
+  --chat--spacing: 1rem;
+  --chat--border-radius: 0.75rem;
+  --chat--transition-duration: 0.25s;
+  --chat--window--width: min(400px, calc(100vw - 2rem));
+  --chat--window--height: min(600px, calc(100vh - 7rem));
+  --chat--window--bottom: 1rem;
+  --chat--window--right: 1rem;
+  --chat--window--border: 1px solid rgba(168, 85, 247, 0.24);
+  --chat--window--border-radius: 1rem;
+  --chat--window--margin-bottom: 1rem;
+  --chat--header--padding: 1rem 1.1rem;
+  --chat--header--background: rgba(13, 11, 30, 0.94);
+  --chat--header--color: #f8fafc;
+  --chat--header--border-bottom: 1px solid rgba(168, 85, 247, 0.18);
+  --chat--heading--font-size: 1.1rem;
+  --chat--message--font-size: 0.875rem;
+  --chat--message--padding: 0.7rem 0.85rem;
+  --chat--message--border-radius: 0.75rem;
+  --chat--message--bot--background: rgba(25, 21, 51, 0.86);
+  --chat--message--bot--color: #e5e7eb;
+  --chat--message--bot--border: 1px solid rgba(168, 85, 247, 0.12);
+  --chat--message--user--background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  --chat--message--user--color: #ffffff;
+  --chat--message--user--border: 0;
+  --chat--messages-list--padding: 1rem;
+  --chat--body--background: #0d0b1e;
+  --chat--footer--padding: 0.8rem;
+  --chat--footer--background: rgba(13, 11, 30, 0.96);
+  --chat--footer--color: #cbd5e1;
+  --chat--footer--border-top: 1px solid rgba(168, 85, 247, 0.18);
+  --chat--toggle--size: 60px;
+  --chat--toggle--background: linear-gradient(135deg, #7c3aed, #06b6d4);
+  --chat--toggle--hover--background: linear-gradient(135deg, #8b5cf6, #22d3ee);
+  --chat--toggle--active--background: #0891b2;
+  --chat--input--background: rgba(25, 21, 51, 0.9);
+  --chat--input--text-color: #ffffff;
+  --chat--input--padding: 0.7rem 0.85rem;
+  --chat--input--container--background: rgba(25, 21, 51, 0.9);
+  --chat--input--container--border: 1px solid rgba(168, 85, 247, 0.2);
+  --chat--input--container--border-radius: 0.5rem;
+  --chat--input--container--padding: 0.2rem;
+  --chat--input--send--button--background: transparent;
+  --chat--input--send--button--color: #22d3ee;
+  --chat--input--send--button--background-hover: rgba(168, 85, 247, 0.18);
+  --chat--input--send--button--color-hover: #ffffff;
+}
+
+.n8n-chat .chat-window {
+  background: linear-gradient(135deg, #0d0b1e, #15122d);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(168, 85, 247, 0.15);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.n8n-chat .chat-window-wrapper .chat-window-toggle {
+  background: linear-gradient(135deg, #7c3aed, #06b6d4);
+  background-image: url('/aether_pulse_logo.jpg');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 78%;
+  box-shadow: 0 8px 24px rgba(6, 182, 212, 0.3), 0 4px 12px rgba(124, 58, 237, 0.4);
+}
+
+.n8n-chat .chat-window-wrapper .chat-window-toggle svg {
+  display: none;
+}
+
+.n8n-chat .chat-window-wrapper .chat-window-toggle:hover,
+.n8n-chat .chat-window-wrapper .chat-window-toggle:focus {
+  transform: scale(1.08) translateY(-2px);
+  box-shadow: 0 12px 30px rgba(6, 182, 212, 0.5), 0 6px 16px rgba(124, 58, 237, 0.6);
+}
+
+.n8n-chat .chat-inputs:focus-within {
+  border-color: #a855f7;
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.25);
+}
+
+@media (max-width: 480px) {
+  .n8n-chat .chat-window-wrapper {
+    right: 0.5rem;
+    bottom: 0.5rem;
+  }
+
 }

@@ -68,7 +68,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
           onClick={() => onStatusFilterChange('ALL')}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
             statusFilter === 'ALL' && !highRiskOnly
-              ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.4)] ring-1 ring-purple-400'
+              ? 'bg-purple-700 text-white shadow-sm ring-1 ring-purple-400/60'
               : 'bg-slate-950/70 hover:bg-white/10 text-slate-300 border border-white/10'
           }`}
         >
@@ -86,7 +86,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
           }}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
             statusFilter === 'normal'
-              ? 'bg-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)] ring-1 ring-emerald-400'
+              ? 'bg-emerald-700 text-white shadow-sm ring-1 ring-emerald-400/60'
               : 'bg-slate-950/70 hover:bg-emerald-950/40 text-emerald-300 border border-emerald-500/20'
           }`}
         >
@@ -105,7 +105,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
           }}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
             statusFilter === 'warning'
-              ? 'bg-amber-600 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)] ring-1 ring-amber-400'
+              ? 'bg-amber-700 text-white shadow-sm ring-1 ring-amber-400/60'
               : 'bg-slate-950/70 hover:bg-amber-950/40 text-amber-300 border border-amber-500/20'
           }`}
         >
@@ -124,7 +124,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
           }}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
             statusFilter === 'critical'
-              ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(239,68,68,0.4)] ring-1 ring-red-400 animate-pulse'
+              ? 'bg-red-700 text-white shadow-sm ring-1 ring-red-400/60 animate-pulse'
               : 'bg-slate-950/70 hover:bg-red-950/40 text-red-300 border border-red-500/20'
           }`}
         >
@@ -168,7 +168,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
       <button
         id="btn-dispatch-staff-primary"
         onClick={onOpenDispatchModal}
-        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-sora font-extrabold shadow-[0_0_20px_rgba(147,51,234,0.4)] hover:shadow-[0_0_25px_rgba(147,51,234,0.6)] border border-purple-400/40 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98 shrink-0 uppercase tracking-wider"
+        className="px-5 py-2.5 rounded-lg bg-purple-700 hover:bg-purple-600 text-white text-xs font-sora font-extrabold shadow-sm border border-purple-400/40 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98 shrink-0 tracking-wider"
       >
         <Send className="w-3.5 h-3.5 fill-current text-cyan-300" />
         <span>DISPATCH STAFF</span>

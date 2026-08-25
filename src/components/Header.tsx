@@ -93,7 +93,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header 
       id="global-command-header"
-      className="sticky top-2 z-40 w-[calc(100%-1rem)] max-w-[1920px] mx-auto px-4 lg:px-6 py-2.5 my-2 rounded-2xl bg-[#0b0f19]/90 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.6)] flex flex-col md:flex-row items-center justify-between gap-3 transition-all duration-200 select-none"
+      className="sticky top-2 z-40 w-[calc(100%-1rem)] max-w-[1920px] mx-auto px-4 lg:px-6 py-2.5 my-2 rounded-xl bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 shadow-lg flex flex-col md:flex-row items-center justify-between gap-3 transition-all duration-200 select-none"
     >
       {/* ========================================================= */}
       {/* 1. LEFT ZONE: BRAND & CORE ARCHITECTURE */}
@@ -175,7 +175,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={() => onSelectView('navigator')}
           className={`px-4 py-1.5 rounded-lg font-bold transition-all duration-200 flex items-center gap-2 cursor-pointer relative ${
             activeView === 'navigator'
-              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-[0_0_18px_rgba(147,51,234,0.5)] ring-1 ring-purple-300/40'
+              ? 'bg-purple-700 text-white shadow-sm ring-1 ring-purple-300/40'
               : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
           }`}
           title="Macro-ward overview and multi-room spatial radar monitoring"
@@ -197,7 +197,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={() => onSelectView('inspector')}
           className={`px-4 py-1.5 rounded-lg font-bold transition-all duration-200 flex items-center gap-2 cursor-pointer relative ${
             activeView === 'inspector'
-              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-[0_0_18px_rgba(147,51,234,0.5)] ring-1 ring-purple-300/40'
+              ? 'bg-purple-700 text-white shadow-sm ring-1 ring-purple-300/40'
               : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
           }`}
           title="Micro-room diagnostics, digital twin kinematics and CSI spatial matrix"
@@ -305,7 +305,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             id="simulate-event-btn"
             onClick={onOpenSimModal}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-sora text-xs font-bold text-white tracking-wider cursor-pointer bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 border border-purple-400/40 shadow-[0_0_20px_rgba(147,51,234,0.45)] hover:shadow-[0_0_25px_rgba(147,51,234,0.65)] active:scale-98 transition-all duration-200"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-sora text-xs font-bold text-white tracking-wider cursor-pointer bg-purple-700 hover:bg-purple-600 border border-purple-400/40 shadow-sm active:scale-98 transition-all duration-200"
           >
             <Play className="w-3.5 h-3.5 fill-current text-cyan-300" />
             <span className="font-extrabold uppercase">SIMULATE EVENT</span>

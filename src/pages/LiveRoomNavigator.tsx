@@ -178,7 +178,7 @@ export const LiveRoomNavigator: React.FC<LiveRoomNavigatorProps> = ({
       {/* ========================================================= */}
       <div 
         id="ward-layout-toggle-bar"
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2.5 rounded-2xl glass-panel border border-white/10 shadow-lg bg-[#070b14]/90 backdrop-blur-xl"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2.5 rounded-xl glass-panel border border-white/10 shadow-md bg-[#111724]/90 backdrop-blur-xl"
       >
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-purple-950/70 border border-purple-500/30">
@@ -202,7 +202,7 @@ export const LiveRoomNavigator: React.FC<LiveRoomNavigatorProps> = ({
             onClick={() => setLayoutMode('split')}
             className={`px-3.5 py-1.5 rounded-lg font-bold flex items-center gap-2 transition-all cursor-pointer ${
               layoutMode === 'split' 
-                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.4)] ring-1 ring-purple-400' 
+                ? 'bg-purple-700 text-white shadow-sm ring-1 ring-purple-400/60' 
                 : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
             }`}
             title="Simultaneous map and card stream layout"
@@ -217,7 +217,7 @@ export const LiveRoomNavigator: React.FC<LiveRoomNavigatorProps> = ({
             onClick={() => setLayoutMode('map')}
             className={`px-3.5 py-1.5 rounded-lg font-bold flex items-center gap-2 transition-all cursor-pointer ${
               layoutMode === 'map' 
-                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.4)] ring-1 ring-purple-400' 
+                ? 'bg-purple-700 text-white shadow-sm ring-1 ring-purple-400/60' 
                 : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
             }`}
             title="Maximized spatial radar floor plan view"
@@ -232,7 +232,7 @@ export const LiveRoomNavigator: React.FC<LiveRoomNavigatorProps> = ({
             onClick={() => setLayoutMode('grid')}
             className={`px-3.5 py-1.5 rounded-lg font-bold flex items-center gap-2 transition-all cursor-pointer ${
               layoutMode === 'grid' 
-                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.4)] ring-1 ring-purple-400' 
+                ? 'bg-purple-700 text-white shadow-sm ring-1 ring-purple-400/60' 
                 : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
             }`}
             title="Maximized patient telemetry card stream"

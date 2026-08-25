@@ -217,7 +217,7 @@ export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({
   }, [twinCommand]);
 
   return (
-    <div className="relative flex h-[540px] w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#030712] shadow-2xl glass-panel glass-specular">
+    <div className="relative flex h-[580px] w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#030712] shadow-2xl glass-panel glass-specular">
       <div className="pointer-events-none absolute top-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2">
         <div className="pointer-events-auto flex items-center gap-2">
           <div className="flex items-center gap-2 rounded-full border border-white/10 px-3.5 py-1.5 shadow-lg glass-panel backdrop-blur-xl">
@@ -444,7 +444,35 @@ export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({
         </ThreeErrorBoundary>
       </div>
 
-      <div className="absolute bottom-2 left-2 right-2 z-20">
+      <div className="absolute bottom-2 left-2 right-2 z-20 flex flex-col gap-2">
+        <div
+          className={`pointer-events-auto flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-3 py-2 shadow-2xl backdrop-blur-xl ${
+            csiState.isCritical
+              ? 'border-red-500/70 bg-red-950/80 text-red-100'
+              : csiState.isWarning
+                ? 'border-amber-500/60 bg-amber-950/80 text-amber-100'
+                : 'border-emerald-500/40 bg-slate-950/80 text-emerald-100'
+          }`}
+        >
+          <div className="flex min-w-0 items-center gap-2">
+            <Activity className="h-4 w-4 shrink-0" />
+            <div className="min-w-0">
+              <div className="text-[10px] font-sora font-bold uppercase tracking-[0.14em]">
+                {patient.posture} · live status
+              </div>
+              <div className="truncate text-[11px] font-tech text-slate-200">{patient.postureDescription}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 font-tech text-[11px]">
+            <span className="flex items-center gap-1 text-red-300">
+              <Heart className="h-3.5 w-3.5" /> {patient.heartRate} BPM
+            </span>
+            <span className="flex items-center gap-1 text-cyan-300">
+              <Wind className="h-3.5 w-3.5" /> {patient.respirationRate} RPM
+            </span>
+            <span className="hidden sm:inline text-slate-400">HRV {patient.hrv} ms</span>
+          </div>
+        </div>
         <TwinPlaybackBar
           scenario={scenario}
           currentTime={currentTime}

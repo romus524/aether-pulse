@@ -153,8 +153,11 @@ export function AetherPulseAgent({ role, userId, userName, selectedRoomId, onSna
       handleResponse(data);
     } catch (error) {
       setPhase("failed");
-      const detail = error instanceof Error ? error.message : "Unknown error";
-      pushAgent(`The request could not be completed because the automation service is unavailable (${detail}). No platform change was claimed.`);
+      const detail =
+        error instanceof Error && error.message
+          ? error.message
+          : "Automation service temporarily unavailable. Please try again.";
+      pushAgent(detail.includes("<!DOCTYPE") ? "Automation service temporarily unavailable. Please try again." : detail);
       window.setTimeout(() => setPhase("idle"), 1200);
     }
   };

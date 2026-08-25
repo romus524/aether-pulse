@@ -191,9 +191,28 @@ class PlatformStore {
     return { id: `room-${roomNumber}`, roomNumber, bedNumber: `${roomNumber}-A` };
   }
 
+  automationLog: Array<{
+    request_id: string;
+    session_id: string;
+    workflow: string;
+    action: string;
+    started_at: string;
+    completed_at: string;
+    status: "completed" | "failed" | "unknown";
+    http_status?: number;
+    retry_count: number;
+    error_type?: string;
+    execution_id?: string;
+  }> = [];
+
   recordAudit(entry: AgentAuditEntry) {
     this.audit.unshift(entry);
     this.audit = this.audit.slice(0, 200);
+  }
+
+  recordAutomation(entry: PlatformStore["automationLog"][number]) {
+    this.automationLog.unshift(entry);
+    this.automationLog = this.automationLog.slice(0, 200);
   }
 }
 

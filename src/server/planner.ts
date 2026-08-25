@@ -23,7 +23,7 @@ function extractQuoted(text: string): string | undefined {
 function extractPersonName(text: string): string | undefined {
   const quoted = extractQuoted(text);
   if (quoted && /[a-z]/i.test(quoted)) return quoted;
-  const named = text.match(/\b(?:patient|named|called)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/i);
+  const named = text.match(/\b(?:[Pp]atient|[Nn]amed|[Cc]alled)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/);
   if (named) return named[1];
   const add = text.match(
     /\b(?:[Aa]dd|[Aa]dmit|[Rr]egister|[Cc]reate)\s+(?:a\s+|the\s+|new\s+)*(?:patient\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/,
@@ -348,20 +348,19 @@ export function planUtterance(utterance: string, _role: OperatorRole, selectedRo
   }
 
   const operational = steps.length > 1;
-  if (!operational) {
-    if (/\b(help|what can you|capabilities)\b/.test(lower) || true) {
-      steps.push(step("getSystemStatus", {}, "Read current system status"));
-    }
+  if (!operational && /\b(help|what can you|capabilities|system status|ward status|occupancy)\b/.test(lower)) {
+    steps.push(step("getSystemStatus", {}, "Read current system status"));
+    bits.push("read system status");
   }
 
-  const explanation = operational
+  const explanation = steps.length > 1
     ? `I will ${bits.join(", then ")}.`
-    : "I did not detect a platform operation. I can still read system status. For actions, try commands like “Add Jane Doe to Ward 3 and enable CSI monitoring.”";
+    : "This looks like a question rather than a platform mutation. I will ask the automation assistant without changing records.";
 
   return {
     steps,
     missing,
     explanation,
-    conversational: !operational,
+    conversational: steps.length <= 1,
   };
 }

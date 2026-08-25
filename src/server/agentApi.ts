@@ -218,7 +218,9 @@ export function registerAgentRoutes(app: Express) {
         ? ""
         : n8n.confirmed
           ? " Orchestration webhook confirmed the event."
-          : " Local execution was verified; the orchestration webhook did not confirm a separate workflow result.";
+          : "error" in n8n && n8n.error
+            ? ` ${userFacingHttpError(n8n.error)} Local platform verification still stands for completed tools.`
+            : "";
       response.json({
         ...buildResponse({
           status: failed ? "failed" : "completed",

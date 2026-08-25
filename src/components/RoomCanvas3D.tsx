@@ -1,26 +1,33 @@
-import React, { useState, useEffect, useMemo, Suspense, Component, ErrorInfo, ReactNode } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Suspense, Component, ErrorInfo, ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { ContactShadows, Environment, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { PatientRecord } from '../types';
 import { UiCommand } from '../platform/agentProtocol';
-import { 
-  Radio, 
-  ShieldCheck, 
-  Compass, 
-  Box, 
-  Activity, 
-  Wind, 
-  Heart, 
-  Sparkles, 
+import {
+  Radio,
+  ShieldCheck,
+  Compass,
+  Box,
+  Activity,
+  Wind,
+  Heart,
+  Sparkles,
   RefreshCw,
 } from 'lucide-react';
-import { getCSISpatialState } from './3d/CSIAdapter';
 import { DigitalTwinHuman } from './3d/DigitalTwinHuman';
 import { CSIWavefrontField } from './3d/CSIWavefrontField';
 import { CSIParticleField } from './3d/CSIParticleField';
 import { SpatialEnvironment } from './3d/SpatialEnvironment';
-import { MovementTrajectory } from './3d/MovementTrajectory';
+import { GhostPathReplay } from './3d/GhostPathReplay';
+import { EventPulseField } from './3d/EventPulseField';
+import { TwinEventMarkerHint, TwinPlaybackBar } from './3d/TwinPlaybackBar';
+import {
+  findEventTime,
+  getPlaybackSpatialState,
+  getScenarioForPatient,
+  samplePlaybackPose,
+} from './3d/scenarioPlayback';
 
 interface RoomCanvasProps {
   patient: PatientRecord;
@@ -29,9 +36,6 @@ interface RoomCanvasProps {
   twinCommand?: UiCommand | null;
 }
 
-// -------------------------------------------------------------
-// THREE WEBGL ERROR BOUNDARY
-// -------------------------------------------------------------
 class ThreeErrorBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { hasError: boolean }> {
   constructor(props: { children: ReactNode; fallback: ReactNode }) {
     super(props);
@@ -51,157 +55,220 @@ class ThreeErrorBoundary extends Component<{ children: ReactNode; fallback: Reac
   }
 }
 
-// -------------------------------------------------------------
-// CAMERA CONTROLLER WITH PRESETS & SMOOTH LERP
-// -------------------------------------------------------------
 export type CameraPreset = 'iso' | 'front' | 'side' | 'top' | 'bed' | 'full';
 
-function CameraAnimator({ cameraPreset }: { cameraPreset: CameraPreset }) {
+function PlaybackCamera({
+  cameraPreset,
+  patient,
+  timeRef,
+  followRef,
+  userControlRef,
+  orbitRef,
+}: {
+  cameraPreset: CameraPreset;
+  patient: PatientRecord;
+  timeRef: React.MutableRefObject<number>;
+  followRef: React.MutableRefObject<boolean>;
+  userControlRef: React.MutableRefObject<boolean>;
+  orbitRef: React.MutableRefObject<{ target: THREE.Vector3 } | null>;
+}) {
   const { camera } = useThree();
+  const lookAt = useMemo(() => new THREE.Vector3(), []);
 
-  const presets: Record<CameraPreset, { pos: [number, number, number]; target: [number, number, number] }> = {
-    iso: { pos: [3.2, 2.8, 3.8], target: [0.2, 0.45, 0.1] },
-    front: { pos: [0, 1.4, 4.2], target: [0, 0.5, 0] },
-    side: { pos: [4.2, 1.4, 0], target: [0, 0.5, 0] },
-    top: { pos: [0.01, 5.4, 0.01], target: [0, 0, 0] },
-    bed: { pos: [1.6, 1.3, 1.7], target: [0.2, 0.5, 0.1] },
-    full: { pos: [4.9, 3.9, 5.3], target: [0, 0.5, 0] },
+  const presets: Record<CameraPreset, { pos: [number, number, number] }> = {
+    iso: { pos: [3.2, 2.8, 3.8] },
+    front: { pos: [0, 1.4, 4.2] },
+    side: { pos: [4.2, 1.4, 0] },
+    top: { pos: [0.01, 5.4, 0.01] },
+    bed: { pos: [1.6, 1.3, 1.7] },
+    full: { pos: [4.9, 3.9, 5.3] },
   };
 
-  useFrame(() => {
+  useFrame((_, delta) => {
+    if (userControlRef.current || !followRef.current) return;
+    const pose = samplePlaybackPose(patient, timeRef.current);
     const target = presets[cameraPreset];
-    if (target) {
-      camera.position.x = THREE.MathUtils.lerp(camera.position.x, target.pos[0], 0.06);
-      camera.position.y = THREE.MathUtils.lerp(camera.position.y, target.pos[1], 0.06);
-      camera.position.z = THREE.MathUtils.lerp(camera.position.z, target.pos[2], 0.06);
-      camera.lookAt(target.target[0], target.target[1], target.target[2]);
+    lookAt.set(pose.position.x, pose.position.y, pose.position.z);
+    camera.position.x = THREE.MathUtils.damp(camera.position.x, target.pos[0] + pose.position.x * 0.18, 3.2, delta);
+    camera.position.y = THREE.MathUtils.damp(camera.position.y, target.pos[1], 3.2, delta);
+    camera.position.z = THREE.MathUtils.damp(camera.position.z, target.pos[2] + pose.position.z * 0.18, 3.2, delta);
+    if (orbitRef.current) {
+      orbitRef.current.target.x = THREE.MathUtils.damp(orbitRef.current.target.x, lookAt.x, 3.4, delta);
+      orbitRef.current.target.y = THREE.MathUtils.damp(orbitRef.current.target.y, lookAt.y, 3.4, delta);
+      orbitRef.current.target.z = THREE.MathUtils.damp(orbitRef.current.target.z, lookAt.z, 3.4, delta);
     }
   });
 
   return null;
 }
 
-// -------------------------------------------------------------
-// MAIN ROOM CANVAS 3D EXPORTED COMPONENT
-// -------------------------------------------------------------
-export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({ 
-  patient, 
-  showPointCloud: _initialShowPointCloud = true,
+export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({
+  patient,
+  showPointCloud: initialShowPointCloud = true,
   twinCommand = null,
 }) => {
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>('iso');
   const [playbackNotice, setPlaybackNotice] = useState<string | null>(null);
+  const [showWavefronts, setShowWavefronts] = useState(true);
+  const [showParticles, setShowParticles] = useState(initialShowPointCloud);
+  const [showGhostPath, setShowGhostPath] = useState(true);
+  const [showInspectorCard, setShowInspectorCard] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isLive, setIsLive] = useState(true);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [seekVersion, setSeekVersion] = useState(0);
 
-  const [showWavefronts, setShowWavefronts] = useState<boolean>(true);
-  const [showParticles, setShowParticles] = useState<boolean>(false);
-  const [showTrajectory, setShowTrajectory] = useState<boolean>(true);
-  const [quality] = useState<'high' | 'balanced' | 'performance'>('balanced');
-  const [showInspectorCard, setShowInspectorCard] = useState<boolean>(true);
+  const timeRef = useRef(0);
+  const followRef = useRef(true);
+  const userControlRef = useRef(false);
+  const orbitRef = useRef<{ target: THREE.Vector3 } | null>(null);
+  const quality = 'balanced' as const;
 
-  // Time state for continuous real-time CSI synthesis
-  const [time, setTime] = useState<number>(0);
+  const scenario = useMemo(() => getScenarioForPatient(patient), [patient.roomNumber]);
+  const duration = scenario.durationSeconds;
 
   useEffect(() => {
-    let animId: number;
-    const start = performance.now();
-    const tick = (now: number) => {
-      setTime((now - start) / 1000);
-      animId = requestAnimationFrame(tick);
-    };
-    animId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(animId);
-  }, []);
+    timeRef.current = 0;
+    setCurrentTime(0);
+    setIsPlaying(true);
+    setIsLive(true);
+    followRef.current = true;
+    setSeekVersion((value) => value + 1);
+  }, [patient.id]);
 
-  // Compute live CSI state & spatial kinematics
-  const csiState = useMemo(() => {
-    return getCSISpatialState(patient, time);
-  }, [patient, time]);
+  useEffect(() => {
+    let frame = 0;
+    let last = performance.now();
+    let hudAt = 0;
+
+    const tick = (now: number) => {
+      const delta = (now - last) / 1000;
+      last = now;
+      if (isPlaying) {
+        let next = timeRef.current + delta * playbackSpeed;
+        if (next >= duration) {
+          next = isLive ? next % duration : duration;
+          if (!isLive) setIsPlaying(false);
+        }
+        timeRef.current = next;
+      }
+      if (now - hudAt > 80) {
+        hudAt = now;
+        setCurrentTime(timeRef.current);
+      }
+      frame = requestAnimationFrame(tick);
+    };
+
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [isPlaying, isLive, playbackSpeed, duration]);
+
+  const csiState = useMemo(() => getPlaybackSpatialState(patient, currentTime), [patient, currentTime]);
+  const activeEvent = samplePlaybackPose(patient, currentTime).activeEvent;
+
+  const seekTo = (time: number) => {
+    timeRef.current = Math.min(Math.max(time, 0), duration);
+    setCurrentTime(timeRef.current);
+    setIsLive(false);
+    followRef.current = true;
+    setSeekVersion((value) => value + 1);
+  };
 
   useEffect(() => {
     if (!twinCommand) return;
-    if (twinCommand.cameraPreset) setCameraPreset(twinCommand.cameraPreset);
+    if (twinCommand.cameraPreset) {
+      setCameraPreset(twinCommand.cameraPreset);
+      followRef.current = true;
+    }
     if (twinCommand.showPointCloud !== undefined) setShowParticles(twinCommand.showPointCloud);
     if (twinCommand.showWavefronts !== undefined) setShowWavefronts(twinCommand.showWavefronts);
-    if (twinCommand.showTrajectory !== undefined) setShowTrajectory(twinCommand.showTrajectory);
+    if (twinCommand.showTrajectory !== undefined) setShowGhostPath(twinCommand.showTrajectory);
+
     if (twinCommand.playback) {
-      const eventLabel = twinCommand.seekEvent ? ` around ${twinCommand.seekEvent}` : "";
-      const speed = twinCommand.playbackSpeed ? ` · ${twinCommand.playbackSpeed}x` : "";
-      setPlaybackNotice(
-        twinCommand.playback === "pause"
-          ? "Twin playback paused"
-          : twinCommand.playback === "live"
-            ? "Twin returned to live CSI"
-            : `Replaying recent movement${eventLabel}${speed}`,
-      );
+      const eventTime = findEventTime(patient, twinCommand.seekEvent);
+      if (twinCommand.playbackSpeed) setPlaybackSpeed(twinCommand.playbackSpeed);
+
+      if (twinCommand.playback === 'pause') {
+        setIsPlaying(false);
+        setIsLive(false);
+        setPlaybackNotice('Twin playback paused');
+      } else if (twinCommand.playback === 'live') {
+        setIsLive(true);
+        setIsPlaying(true);
+        setPlaybackSpeed(1);
+        followRef.current = true;
+        setPlaybackNotice('Twin returned to live CSI');
+      } else if (twinCommand.playback === 'play') {
+        setIsPlaying(true);
+        setIsLive(false);
+        if (eventTime !== null) seekTo(eventTime);
+        setPlaybackNotice(twinCommand.seekEvent ? `Playing around ${twinCommand.seekEvent}` : 'Twin playback playing');
+      } else {
+        seekTo(eventTime ?? 0);
+        setIsPlaying(true);
+        const eventLabel = twinCommand.seekEvent ? ` around ${twinCommand.seekEvent}` : '';
+        const speed = twinCommand.playbackSpeed ? ` · ${twinCommand.playbackSpeed}x` : '';
+        setPlaybackNotice(`Replaying recent movement${eventLabel}${speed}`);
+      }
     }
+    // seekTo is stable enough for command application; include twinCommand as the trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [twinCommand]);
 
-  const handleResetCamera = () => {
-    setCameraPreset('iso');
-  };
-
   return (
-    <div className="relative w-full h-[460px] rounded-2xl overflow-hidden glass-panel glass-specular border border-white/10 flex flex-col shadow-2xl bg-[#030712]">
-      {/* ========================================================= */}
-      {/* 1. TOP CONTROL & STATUS HEADER */}
-      {/* ========================================================= */}
-      <div className="absolute top-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
-        {/* Left Room Identification & Digital Twin Badge */}
-        <div className="flex items-center gap-2 pointer-events-auto">
-          <div className="flex items-center gap-2 glass-panel backdrop-blur-xl px-3.5 py-1.5 rounded-full border border-white/10 shadow-lg">
-            <Radio className={`w-4 h-4 ${csiState.isCritical ? 'text-red-400 animate-pulse' : 'text-cyan-400 animate-pulse'}`} />
-            <span className="text-xs font-sora font-bold text-white tracking-wider">
+    <div className="relative flex h-[540px] w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#030712] shadow-2xl glass-panel glass-specular">
+      <div className="pointer-events-none absolute top-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2">
+        <div className="pointer-events-auto flex items-center gap-2">
+          <div className="flex items-center gap-2 rounded-full border border-white/10 px-3.5 py-1.5 shadow-lg glass-panel backdrop-blur-xl">
+            <Radio className={`h-4 w-4 ${csiState.isCritical ? 'animate-pulse text-red-400' : 'animate-pulse text-cyan-400'}`} />
+            <span className="font-sora text-xs font-bold tracking-wider text-white">
               CSI DIGITAL TWIN: RM {patient.roomNumber}
             </span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full font-tech bg-purple-950/80 text-purple-300 border border-purple-500/30 font-bold flex items-center gap-1">
-              <Box className="w-3 h-3 text-cyan-400" />
-              3D CLINICAL TWIN
+            <span className="flex items-center gap-1 rounded-full border border-purple-500/30 bg-purple-950/80 px-2 py-0.5 font-tech text-[10px] font-bold text-purple-300">
+              <Box className="h-3 w-3 text-cyan-400" />
+              LIVE PLAYBACK
             </span>
           </div>
           {playbackNotice && (
-            <div className="glass-panel backdrop-blur-xl px-3 py-1.5 rounded-full border border-purple-400/30 text-[10px] font-sora text-purple-100">
+            <div className="rounded-full border border-purple-400/30 px-3 py-1.5 font-sora text-[10px] text-purple-100 glass-panel backdrop-blur-xl">
               {playbackNotice}
             </div>
           )}
         </div>
 
-        {/* Right Camera Presets & Layer Controls */}
-        <div className="flex items-center gap-1.5 pointer-events-auto flex-wrap">
-          {/* Layer Quick Toggles */}
-          <div className="flex items-center gap-1 glass-panel backdrop-blur-xl p-1 rounded-full border border-white/10 shadow-lg">
+        <div className="pointer-events-auto flex flex-wrap items-center gap-1.5">
+          <div className="flex items-center gap-1 rounded-full border border-white/10 p-1 shadow-lg glass-panel backdrop-blur-xl">
             <button
               onClick={() => setShowWavefronts(!showWavefronts)}
               title="Toggle CSI Wavefronts"
-              className={`p-1.5 rounded-full text-[10px] transition-all cursor-pointer ${
-                showWavefronts ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'text-slate-400 hover:text-white'
+              className={`cursor-pointer rounded-full p-1.5 text-[10px] transition-all ${
+                showWavefronts ? 'border border-cyan-500/40 bg-cyan-500/20 text-cyan-300' : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Radio className="w-3.5 h-3.5" />
+              <Radio className="h-3.5 w-3.5" />
             </button>
-
             <button
               onClick={() => setShowParticles(!showParticles)}
               title="Toggle CSI Particle Field"
-              className={`p-1.5 rounded-full text-[10px] transition-all cursor-pointer ${
-                showParticles ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40' : 'text-slate-400 hover:text-white'
+              className={`cursor-pointer rounded-full p-1.5 text-[10px] transition-all ${
+                showParticles ? 'border border-purple-500/40 bg-purple-500/20 text-purple-300' : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="h-3.5 w-3.5" />
             </button>
-
             <button
-              onClick={() => setShowTrajectory(!showTrajectory)}
-              title="Toggle Movement Path Trajectory"
-              className={`p-1.5 rounded-full text-[10px] transition-all cursor-pointer ${
-                showTrajectory ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40' : 'text-slate-400 hover:text-white'
+              onClick={() => setShowGhostPath(!showGhostPath)}
+              title="Toggle ghost path replay"
+              className={`cursor-pointer rounded-full p-1.5 text-[10px] transition-all ${
+                showGhostPath ? 'border border-indigo-500/40 bg-indigo-500/20 text-indigo-300' : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Activity className="w-3.5 h-3.5" />
+              <Activity className="h-3.5 w-3.5" />
             </button>
           </div>
 
-          {/* Camera View Angle Selector */}
-          <div className="flex items-center gap-1 glass-panel backdrop-blur-xl p-1 rounded-full border border-white/10 shadow-lg">
+          <div className="flex items-center gap-1 rounded-full border border-white/10 p-1 shadow-lg glass-panel backdrop-blur-xl">
             {(
               [
                 { id: 'iso', label: '3D' },
@@ -211,134 +278,89 @@ export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({
             ).map((preset) => (
               <button
                 key={preset.id}
-                onClick={() => setCameraPreset(preset.id)}
-                className={`px-2.5 py-1 text-[10px] font-sora font-bold rounded-full transition-all cursor-pointer uppercase ${
+                onClick={() => {
+                  setCameraPreset(preset.id);
+                  followRef.current = true;
+                }}
+                className={`cursor-pointer rounded-full px-2.5 py-1 font-sora text-[10px] font-bold uppercase transition-all ${
                   cameraPreset === preset.id
                     ? 'bg-purple-600 text-white shadow-md shadow-purple-600/40 ring-1 ring-purple-400'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                    : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
                 }`}
               >
                 {preset.label}
               </button>
             ))}
-
-            {/* Reset Camera Button */}
             <button
-              onClick={handleResetCamera}
-              title="Reset 360° Camera View"
-              className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer ml-0.5"
+              onClick={() => {
+                setCameraPreset('iso');
+                followRef.current = true;
+              }}
+              title="Reset camera follow"
+              className="ml-0.5 cursor-pointer rounded-full p-1 text-slate-400 transition-all hover:bg-white/10 hover:text-white"
             >
-              <RefreshCw className="w-3 h-3" />
+              <RefreshCw className="h-3 w-3" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* ========================================================= */}
-      {/* 2. FLOATING CSI CLINICAL TELEMETRY HUD (TOP RIGHT) */}
-      {/* ========================================================= */}
       {showInspectorCard && (
-        <div className="absolute top-16 right-3 z-10 hidden sm:flex flex-col gap-1.5 p-3.5 glass-card backdrop-blur-xl rounded-2xl border border-white/10 text-[10px] font-tech text-slate-300 pointer-events-auto w-52 shadow-2xl">
-          <div className="flex items-center justify-between text-cyan-300 border-b border-white/10 pb-1.5 font-bold tracking-wider">
+        <div className="absolute top-16 right-3 z-10 hidden w-52 flex-col gap-1.5 rounded-2xl border border-white/10 p-3.5 font-tech text-[10px] text-slate-300 shadow-2xl glass-card backdrop-blur-xl pointer-events-auto sm:flex">
+          <div className="flex items-center justify-between border-b border-white/10 pb-1.5 font-bold tracking-wider text-cyan-300">
             <span className="flex items-center gap-1.5">
-              <Compass className="w-3.5 h-3.5 text-cyan-400 animate-spin" style={{ animationDuration: '12s' }} /> 
+              <Compass className="h-3.5 w-3.5 text-cyan-400" />
               CSI SPATIAL MATRIX
             </span>
-            <button
-              onClick={() => setShowInspectorCard(false)}
-              className="text-slate-400 hover:text-white cursor-pointer"
-            >
+            <button onClick={() => setShowInspectorCard(false)} className="cursor-pointer text-slate-400 hover:text-white">
               ✕
             </button>
           </div>
-
           <div className="flex justify-between">
             <span className="text-slate-400">PATIENT:</span>
-            <span className="text-white font-bold">{patient.name}</span>
+            <span className="font-bold text-white">{patient.name}</span>
           </div>
-
-          <div className="flex justify-between">
-            <span className="text-slate-400">COORDINATES:</span>
-            <span className="text-cyan-300 font-mono font-bold">
-              X:{csiState.coordinates.x.toFixed(2)} Y:{csiState.coordinates.y.toFixed(2)} Z:{csiState.coordinates.z.toFixed(2)}
-            </span>
-          </div>
-
           <div className="flex justify-between">
             <span className="text-slate-400">POSTURE:</span>
-            <span className="text-purple-300 font-bold uppercase">{patient.posture}</span>
+            <span className="font-bold uppercase text-purple-300">{csiState.posture}</span>
           </div>
-
           <div className="flex justify-between">
             <span className="text-slate-400">RESPIRATION:</span>
-            <span className="text-emerald-400 font-bold flex items-center gap-1">
-              <Wind className="w-3 h-3" /> {patient.respirationRate} RPM
+            <span className="flex items-center gap-1 font-bold text-emerald-400">
+              <Wind className="h-3 w-3" /> {patient.respirationRate} RPM
             </span>
           </div>
-
           <div className="flex justify-between">
             <span className="text-slate-400">HEART RATE:</span>
-            <span className="text-red-400 font-bold flex items-center gap-1">
-              <Heart className="w-3 h-3" /> {patient.heartRate} BPM
+            <span className="flex items-center gap-1 font-bold text-red-400">
+              <Heart className="h-3 w-3" /> {patient.heartRate} BPM
             </span>
           </div>
-
           <div className="flex justify-between">
-            <span className="text-slate-400">DOPPLER VELOCITY:</span>
-            <span className="text-amber-300 font-mono">{(csiState.dopplerVelocity).toFixed(3)} m/s</span>
-          </div>
-
-          <div className="flex justify-between">
-            <span className="text-slate-400">CSI PHASE (Δφ):</span>
-            <span className="text-indigo-300 font-mono">{(csiState.phaseShiftDelta).toFixed(2)} rad</span>
-          </div>
-
-          <div className="flex justify-between">
-            <span className="text-slate-400">SNR / LINK:</span>
-            <span className="text-cyan-400 font-mono">{csiState.snr.toFixed(1)} dB (60GHz)</span>
+            <span className="text-slate-400">DOPPLER:</span>
+            <span className="font-mono text-amber-300">{csiState.dopplerVelocity.toFixed(3)} m/s</span>
           </div>
         </div>
       )}
 
-      {/* Minimized HUD Re-open Pill */}
       {!showInspectorCard && (
         <button
           onClick={() => setShowInspectorCard(true)}
-          className="absolute top-16 right-3 z-10 px-3 py-1.5 rounded-full glass-panel border border-white/10 text-cyan-300 font-tech text-xs flex items-center gap-1.5 hover:bg-white/10 transition-all cursor-pointer shadow-xl"
+          className="absolute top-16 right-3 z-10 flex cursor-pointer items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 font-tech text-xs text-cyan-300 shadow-xl glass-panel transition-all hover:bg-white/10"
         >
-          <Compass className="w-3.5 h-3.5" /> SHOW CSI HUD
+          <Compass className="h-3.5 w-3.5" /> SHOW CSI HUD
         </button>
       )}
 
-      {/* ========================================================= */}
-      {/* 3. BOTTOM CLINICAL POSTURE BADGE & QUALITY SELECTOR */}
-      {/* ========================================================= */}
-      <div className="absolute bottom-3 left-3 right-3 z-10 flex items-center justify-between pointer-events-none">
-        {/* Posture Status Badge */}
-        <div className={`px-4 py-2 rounded-full border backdrop-blur-xl flex items-center gap-2 shadow-2xl pointer-events-auto ${
-          csiState.isCritical
-            ? 'bg-red-950/90 border-red-500/80 text-red-200 animate-pulse glow-red'
-            : csiState.isWarning
-            ? 'bg-amber-950/90 border-amber-500/80 text-amber-200 glow-amber'
-            : 'bg-slate-950/80 border-emerald-500/50 text-emerald-300 glow-emerald'
-        }`}>
-          <Activity className="w-4 h-4" />
-          <div className="text-xs font-mono">
-            <span className="font-bold uppercase tracking-wider">{patient.posture}</span>: {patient.postureDescription}
-          </div>
-        </div>
-      </div>
+      <TwinEventMarkerHint event={activeEvent} />
 
-      {/* ========================================================= */}
-      {/* 4. WEBGL 3D THREE.JS CANVAS */}
-      {/* ========================================================= */}
-      <div className="w-full h-full bg-gradient-to-b from-[#020617] via-[#050814] to-[#020617]">
+      <div className="h-full w-full bg-gradient-to-b from-[#020617] via-[#050814] to-[#020617]">
         <ThreeErrorBoundary
           fallback={
-            <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-slate-950">
-              <ShieldCheck className="w-12 h-12 text-purple-400 mb-2 animate-bounce" />
-              <h4 className="text-sm font-mono text-purple-300">CSI DIGITAL TWIN ACTIVE</h4>
-              <p className="text-xs text-slate-400 max-w-md mt-1">
+            <div className="flex h-full w-full flex-col items-center justify-center bg-slate-950 p-6 text-center">
+              <ShieldCheck className="mb-2 h-12 w-12 animate-bounce text-purple-400" />
+              <h4 className="font-mono text-sm text-purple-300">CSI DIGITAL TWIN ACTIVE</h4>
+              <p className="mt-1 max-w-md text-xs text-slate-400">
                 Sensing stream online for Room {patient.roomNumber}. Patient posture: {patient.postureDescription}.
               </p>
             </div>
@@ -350,70 +372,107 @@ export const RoomCanvas3D: React.FC<RoomCanvasProps> = ({
             shadows
           >
             <color attach="background" args={['#020617']} />
-
-            {/* CLINICAL LIGHTING RIG */}
-            <ambientLight intensity={0.85} color="#e2e8f0" />
+            <hemisphereLight args={['#dbe7ff', '#141826', 0.55]} />
+            <Environment preset="apartment" environmentIntensity={0.28} />
+            <ambientLight intensity={0.32} color="#c7d2fe" />
             <directionalLight
-              position={[5, 8, 4]}
-              intensity={1.8}
-              color="#ffffff"
+              position={[4.2, 7.2, 3.4]}
+              intensity={1.55}
+              color="#fff7ed"
               castShadow
               shadow-mapSize-width={1024}
               shadow-mapSize-height={1024}
+              shadow-bias={-0.0002}
             />
-            <directionalLight position={[-4, 3, -4]} intensity={0.6} color="#94a3b8" />
+            <directionalLight position={[-3.5, 2.8, -3.2]} intensity={0.45} color="#93c5fd" />
             <pointLight
               position={[0, 2.2, 0]}
-              intensity={csiState.isCritical ? 3.2 : 1.2}
-              color={csiState.isCritical ? '#ef4444' : '#38bdf8'}
+              intensity={csiState.isCritical ? 2.1 : 0.7}
+              color={csiState.isCritical ? '#ef4444' : '#67e8f9'}
+              distance={6}
             />
 
-            {/* CAMERA SMOOTH LERP CONTROLLER */}
-            <CameraAnimator cameraPreset={cameraPreset} />
+            <PlaybackCamera
+              cameraPreset={cameraPreset}
+              patient={patient}
+              timeRef={timeRef}
+              followRef={followRef}
+              userControlRef={userControlRef}
+              orbitRef={orbitRef}
+            />
 
             <Suspense fallback={null}>
-              {/* Spatial Hospital Room & Sensing Infrastructure */}
               <SpatialEnvironment csiState={csiState} />
-
-              {/* Patient 3D Digital Twin Avatar */}
               <DigitalTwinHuman
                 patient={patient}
+                simulationTimeRef={timeRef}
+                seekVersion={seekVersion}
                 quality={quality}
               />
-
-              {/* CSI Multi-Node Wavefront Fields */}
-              <CSIWavefrontField
-                csiState={csiState}
-                enabled={showWavefronts}
-                quality={quality}
+              <CSIWavefrontField csiState={csiState} enabled={showWavefronts} quality={quality} />
+              <CSIParticleField csiState={csiState} enabled={showParticles} quality={quality} />
+              <GhostPathReplay
+                patient={patient}
+                timeRef={timeRef}
+                enabled={showGhostPath}
+                critical={csiState.isCritical}
               />
-
-              {/* CSI 3D Perturbed Particle System */}
-              <CSIParticleField
-                csiState={csiState}
-                enabled={showParticles}
-                quality={quality}
-              />
-
-              {/* Translucent 3D Movement Trajectory */}
-              <MovementTrajectory
-                csiState={csiState}
-                enabled={showTrajectory}
-              />
+              <EventPulseField patient={patient} timeRef={timeRef} />
+              <ContactShadows position={[0, 0.001, 0]} opacity={0.42} scale={6} blur={2.4} far={2.8} color="#020617" />
             </Suspense>
 
-            {/* Full 360° Smooth Orbit Controls */}
             <OrbitControls
-              enablePan={true}
-              enableZoom={true}
-              enableDamping={true}
-              dampingFactor={0.05}
+              enablePan
+              enableZoom
+              enableDamping
+              dampingFactor={0.08}
               maxPolarAngle={Math.PI / 2.02}
               minDistance={1.4}
               maxDistance={9.5}
+              onStart={() => {
+                userControlRef.current = true;
+                followRef.current = false;
+              }}
+              onEnd={() => {
+                userControlRef.current = false;
+              }}
+              ref={(controls) => {
+                orbitRef.current = controls;
+              }}
             />
           </Canvas>
         </ThreeErrorBoundary>
+      </div>
+
+      <div className="absolute bottom-2 left-2 right-2 z-20">
+        <TwinPlaybackBar
+          scenario={scenario}
+          currentTime={currentTime}
+          duration={duration}
+          isPlaying={isPlaying}
+          isLive={isLive}
+          playbackSpeed={playbackSpeed}
+          activeEvent={activeEvent}
+          onTogglePlay={() => {
+            setIsPlaying((value) => !value);
+            if (!isPlaying) setIsLive(false);
+          }}
+          onGoLive={() => {
+            setIsLive(true);
+            setIsPlaying(true);
+            setPlaybackSpeed(1);
+            followRef.current = true;
+          }}
+          onReplay={() => {
+            seekTo(0);
+            setIsPlaying(true);
+          }}
+          onSeek={seekTo}
+          onSpeed={(speed) => {
+            setPlaybackSpeed(speed);
+            setIsLive(false);
+          }}
+        />
       </div>
     </div>
   );

@@ -218,53 +218,55 @@ export function AetherPulseAgent({ role, userId, userName, selectedRoomId, onSna
               </button>
             </header>
 
-            {steps.length > 0 && (
-              <div className="ap-ai-exec-panel">
-                <button type="button" className="ap-ai-exec-toggle" onClick={() => setShowSteps((v) => !v)}>
-                  <span>Execution</span>
-                  <ChevronDown size={14} style={{ transform: showSteps ? "rotate(180deg)" : undefined }} />
-                </button>
-                {showSteps && (
-                  <ul>
-                    {steps.map((step) => (
-                      <li key={step.id} className={`is-${step.status}`}>
-                        <span>{step.status === "done" ? "✓" : step.status === "running" ? "⟳" : step.status === "blocked" ? "✕" : "·"}</span>
-                        <div>
-                          <strong>{step.label}</strong>
-                          {step.result && <em>{step.result}</em>}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-
-            <div className="ap-ai-thread" ref={threadRef}>
-              {messages.map((message) => (
-                <article
-                  key={message.id}
-                  className={`ap-ai-msg ap-ai-msg--${message.role}${
-                    message.tone === "clinical" ? " is-clinical" : message.tone === "emergency" ? " is-emergency" : ""
-                  }`}
-                >
-                  <header>
-                    <span>{message.role === "user" ? "You" : "AetherPulse AI"}</span>
-                    <time>{formatClock(message.at)}</time>
-                  </header>
-                  <p>{message.text}</p>
-                  {message.confirmationId && pendingConfirm === message.confirmationId && (
-                    <div className="ap-ai-confirm">
-                      <button type="button" onClick={() => void send("approved", { confirmationId: message.confirmationId!, approved: true })}>
-                        Confirm and execute
-                      </button>
-                      <button type="button" className="is-ghost" onClick={() => void send("rejected", { confirmationId: message.confirmationId!, approved: false })}>
-                        Cancel
-                      </button>
-                    </div>
+            <div className="ap-ai-body">
+              {steps.length > 0 && (
+                <div className="ap-ai-exec-panel">
+                  <button type="button" className="ap-ai-exec-toggle" onClick={() => setShowSteps((v) => !v)}>
+                    <span>Execution</span>
+                    <ChevronDown size={14} style={{ transform: showSteps ? "rotate(180deg)" : undefined }} />
+                  </button>
+                  {showSteps && (
+                    <ul>
+                      {steps.map((step) => (
+                        <li key={step.id} className={`is-${step.status}`}>
+                          <span>{step.status === "done" ? "✓" : step.status === "running" ? "⟳" : step.status === "blocked" ? "✕" : "·"}</span>
+                          <div>
+                            <strong>{step.label}</strong>
+                            {step.result && <em>{step.result}</em>}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
                   )}
-                </article>
-              ))}
+                </div>
+              )}
+
+              <div className="ap-ai-thread" ref={threadRef}>
+                {messages.map((message) => (
+                  <article
+                    key={message.id}
+                    className={`ap-ai-msg ap-ai-msg--${message.role}${
+                      message.tone === "clinical" ? " is-clinical" : message.tone === "emergency" ? " is-emergency" : ""
+                    }`}
+                  >
+                    <header>
+                      <span>{message.role === "user" ? "You" : "AetherPulse AI"}</span>
+                      <time>{formatClock(message.at)}</time>
+                    </header>
+                    <p>{message.text}</p>
+                    {message.confirmationId && pendingConfirm === message.confirmationId && (
+                      <div className="ap-ai-confirm">
+                        <button type="button" onClick={() => void send("approved", { confirmationId: message.confirmationId!, approved: true })}>
+                          Confirm and execute
+                        </button>
+                        <button type="button" className="is-ghost" onClick={() => void send("rejected", { confirmationId: message.confirmationId!, approved: false })}>
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
             </div>
 
             {pendingConfirm && (
@@ -284,7 +286,7 @@ export function AetherPulseAgent({ role, userId, userName, selectedRoomId, onSna
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={onKeyDown}
                 placeholder="e.g. Add Jane Doe to Ward 3 and enable CSI monitoring."
-                rows={2}
+                rows={1}
                 disabled={busy}
               />
               <button className="ap-ai-send" type="submit" disabled={busy || !input.trim()} aria-label="Send command">

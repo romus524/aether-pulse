@@ -38,10 +38,10 @@
   right: 22px;
   bottom: 22px;
   z-index: 81;
-  width: min(420px, calc(100vw - 28px));
-  height: min(760px, calc(100dvh - 44px));
+  width: min(380px, calc(100vw - 28px));
+  height: min(520px, calc(100dvh - 96px));
   display: grid;
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
   border-radius: 22px;
   border: 1px solid rgba(196, 181, 253, 0.22);
@@ -348,9 +348,16 @@
   margin-right: 6px;
 }
 
+.ap-ai-body {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .ap-ai-thread {
   overflow: auto;
   min-height: 0;
+  flex: 1;
   padding: 8px 14px 12px;
   display: flex;
   flex-direction: column;
@@ -426,15 +433,16 @@
 .ap-ai-composer {
   display: grid;
   grid-template-columns: 1fr auto;
+  align-items: end;
   gap: 8px;
-  padding: 12px 14px 14px;
+  padding: 10px 12px 12px;
   border-top: 1px solid rgba(196, 181, 253, 0.1);
 }
 
 .ap-ai-composer textarea {
   resize: none;
-  min-height: 44px;
-  max-height: 92px;
+  min-height: 40px;
+  max-height: 72px;
   border-radius: 14px;
   border: 1px solid rgba(196, 181, 253, 0.16);
   background: rgba(8, 6, 22, 0.45);
@@ -450,8 +458,8 @@
 }
 
 .ap-ai-send {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 14px;
   border: 0;
   background: linear-gradient(160deg, #7c3aed, #5b21b6);
@@ -701,9 +709,10 @@
 
 @media (max-width: 900px) {
   .ap-ai-shell {
-    right: 14px;
-    bottom: 14px;
-    height: min(680px, calc(100dvh - 28px));
+    right: 12px;
+    bottom: 12px;
+    width: min(360px, calc(100vw - 24px));
+    height: min(460px, calc(100dvh - 84px));
   }
 }
 

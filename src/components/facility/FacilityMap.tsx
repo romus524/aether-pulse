@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { Floor } from '../../types';
 import { FloorBlueprint } from './FloorBlueprint';
 import { RoomMarker } from './RoomMarker';
-import { MapControls } from './MapControls';
 import { MapLegend } from './MapLegend';
 import { FacilityMapHUD } from './FacilityMapHUD';
+import { useMapCamera } from './useMapCamera';
 
 interface FacilityMapProps {
   floor: Floor;
@@ -23,174 +23,88 @@ export const FacilityMap: React.FC<FacilityMapProps> = ({
   matchingRoomIds,
   onSelectRoom,
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [zoom, setZoom] = useState<number>(1.0);
-  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const layerRef = useRef<HTMLDivElement>(null);
   const { width, height } = floor.dimensions;
   const hasActiveSearchOrFilter = searchQuery.trim().length > 0 || statusFilter !== 'ALL';
 
-  // Clamp pan so map geometry stays within visible canvas
-  const clampPan = useCallback(
-    (x: number, y: number, currentZoom: number) => {
-      if (currentZoom <= 1.0) return { x: 0, y: 0 };
-      const maxPanX = (width / 2) * (currentZoom - 0.7);
-      const maxPanY = (height / 2) * (currentZoom - 0.7);
-      return {
-        x: Math.max(-maxPanX, Math.min(maxPanX, x)),
-        y: Math.max(-maxPanY, Math.min(maxPanY, y)),
-      };
-    },
-    [width, height]
+  const selectedRoom = useMemo(
+    () => floor.rooms.find((room) => room.id === selectedRoomId) ?? null,
+    [floor.rooms, selectedRoomId]
   );
 
-  // Reset view on floor change
-  useEffect(() => {
-    setZoom(1.0);
-    setPan({ x: 0, y: 0 });
-  }, [floor.id]);
+  const { relativeZoom, isDragging, consumeDidDrag } = useMapCamera({
+    mapWidth: width,
+    mapHeight: height,
+    floorId: floor.id,
+    viewportRef,
+    layerRef,
+    focusRect: selectedRoom?.position ?? null,
+    focusKey: `${floor.id}:${selectedRoomId}`,
+  });
 
-  // Gentle auto-centering on selected room when zoomed in
-  useEffect(() => {
-    if (!selectedRoomId) return;
-    const selectedRoom = floor.rooms.find((r) => r.id === selectedRoomId);
-    if (!selectedRoom) return;
-
-    if (zoom > 1.1) {
-      const roomCenterX = selectedRoom.position.x + selectedRoom.position.width / 2;
-      const roomCenterY = selectedRoom.position.y + selectedRoom.position.height / 2;
-
-      const targetPanX = (width / 2 - roomCenterX) * 0.5;
-      const targetPanY = (height / 2 - roomCenterY) * 0.5;
-
-      setPan(clampPan(targetPanX, targetPanY, zoom));
-    }
-  }, [selectedRoomId, floor, width, height, zoom, clampPan]);
-
-  // Zoom handlers clamped 0.8 -> 3.0
-  const handleZoomIn = useCallback(() => {
-    setZoom((prev) => {
-      const next = Math.min(3.0, Number((prev + 0.25).toFixed(2)));
-      return next;
-    });
-  }, []);
-
-  const handleZoomOut = useCallback(() => {
-    setZoom((prev) => {
-      const next = Math.max(0.8, Number((prev - 0.25).toFixed(2)));
-      if (next <= 1.0) setPan({ x: 0, y: 0 });
-      return next;
-    });
-  }, []);
-
-  const handleReset = useCallback(() => {
-    setZoom(1.0);
-    setPan({ x: 0, y: 0 });
-  }, []);
-
-  const handleFit = useCallback(() => {
-    setZoom(1.0);
-    setPan({ x: 0, y: 0 });
-  }, []);
-
-  // Mouse Wheel Zooming
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.15 : 0.15;
-    setZoom((prev) => {
-      const next = Math.max(0.8, Math.min(3.0, Number((prev + delta).toFixed(2))));
-      if (next <= 1.0) setPan({ x: 0, y: 0 });
-      return next;
-    });
-  };
-
-  // Click & Drag Panning Handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.room-marker')) return;
-    if (zoom <= 1.0) return; // Only pan when zoomed in
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
-    const newX = e.clientX - dragStart.x;
-    const newY = e.clientY - dragStart.y;
-    setPan(clampPan(newX, newY, zoom));
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
+  const handleSelectRoom = (roomId: string) => {
+    if (consumeDidDrag()) return;
+    onSelectRoom(roomId);
   };
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full h-full min-h-[520px] lg:min-h-[620px] rounded-2xl glass-panel glass-specular border border-white/10 overflow-hidden shadow-2xl select-none flex flex-col justify-between bg-[#050611]"
-      onWheel={handleWheel}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      style={{ cursor: isDragging ? 'grabbing' : zoom > 1.0 ? 'grab' : 'default' }}
-    >
-      {/* Upper Map HUD */}
+    <div className="relative w-full h-full min-h-[520px] lg:min-h-[620px] rounded-2xl glass-panel glass-specular border border-white/10 overflow-hidden shadow-2xl select-none flex flex-col bg-[#050611]">
       <FacilityMapHUD floor={floor} />
 
-      {/* Main Interactive SVG Canvas */}
-      <div className="w-full h-full flex-1 flex items-center justify-center p-3 overflow-hidden relative">
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          className="w-full h-full max-h-[680px] select-none"
-          preserveAspectRatio="xMidYMid meet"
+      <div
+        ref={viewportRef}
+        className="hospital-map-viewport absolute inset-0 z-10 overflow-hidden outline-none"
+        tabIndex={0}
+        role="application"
+        aria-label={`${floor.name} interactive hospital map. Scroll or pinch to zoom, drag to pan.`}
+        style={{ cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+      >
+        <div
+          ref={layerRef}
+          className="hospital-map-layer"
+          style={{
+            width,
+            height,
+            transformOrigin: '0 0',
+            willChange: 'transform',
+          }}
         >
-          <g
-            className="map-content-viewport transition-transform duration-200 ease-out"
-            style={{
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-              transformOrigin: `${width / 2}px ${height / 2}px`,
-            }}
+          <svg
+            width={width}
+            height={height}
+            viewBox={`0 0 ${width} ${height}`}
+            className="block select-none"
+            preserveAspectRatio="xMidYMid meet"
           >
-            {/* Floor CAD Blueprint Base */}
             <FloorBlueprint floor={floor} />
-
-            {/* Interactive Room Markers */}
             <g className="room-markers-group">
-              {floor.rooms.map((room) => {
-                const isSelected = room.id === selectedRoomId;
-                const isMatchingSearch = matchingRoomIds.has(room.id);
-
-                return (
-                  <RoomMarker
-                    key={room.id}
-                    room={room}
-                    isSelected={isSelected}
-                    isMatchingSearch={isMatchingSearch}
-                    hasActiveSearchOrFilter={hasActiveSearchOrFilter}
-                    zoom={zoom}
-                    onSelect={onSelectRoom}
-                  />
-                );
-              })}
+              {floor.rooms.map((room) => (
+                <RoomMarker
+                  key={room.id}
+                  room={room}
+                  isSelected={room.id === selectedRoomId}
+                  isMatchingSearch={matchingRoomIds.has(room.id)}
+                  hasActiveSearchOrFilter={hasActiveSearchOrFilter}
+                  zoom={relativeZoom}
+                  onSelect={handleSelectRoom}
+                />
+              ))}
             </g>
-          </g>
-        </svg>
+          </svg>
+        </div>
       </div>
 
-      {/* Floating Map Legend */}
       <MapLegend />
 
-      {/* Floating Map Pan/Zoom Controls */}
-      <MapControls
-        zoom={zoom}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onReset={handleReset}
-        onFit={handleFit}
-      />
+      <div
+        data-map-ui="hint"
+        className="absolute bottom-4 right-4 z-20 pointer-events-none hidden sm:flex items-center gap-2 glass-panel px-3 py-1.5 rounded-full border border-white/10 text-[10px] font-tech text-slate-400"
+      >
+        <span>SCROLL / PINCH ZOOM</span>
+        <span className="text-slate-600">·</span>
+        <span>DRAG TO PAN</span>
+      </div>
     </div>
   );
 };
-

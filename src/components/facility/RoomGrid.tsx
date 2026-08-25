@@ -157,8 +157,8 @@ export const RoomGrid: React.FC<RoomGridProps> = ({
                 </div>
 
                 <div className="flex items-center gap-4 text-xs font-tech">
-                  <span className="hidden md:inline text-slate-300">HR: {room.heartRate} BPM</span>
-                  <span className="hidden md:inline text-slate-300">RESP: {room.respirationRate}/m</span>
+                  <span className="text-slate-300">HR: {room.heartRate} BPM</span>
+                  <span className="text-slate-300">RESP: {room.respirationRate}/m</span>
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border bg-slate-900 border-white/10 text-slate-200">
                     {room.status}
                   </span>

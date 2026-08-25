@@ -1,0 +1,91 @@
+{
+  "name": "AetherPulse Agent Orchestration",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "aetherpulse-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-in",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "aetherpulse-agent"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nconst requestId = body.request_id || body.requestId || $executionId;\nconst action = body.action || 'sendMessage';\nconst message = body.user_message || body.chatInput || '';\nif (!message || typeof message !== 'string') {\n  return [{ json: { valid: false, request_id: requestId, action, error: { type: 'BAD_REQUEST', retryable: false }, message: 'user_message is required' } }];\n}\nreturn [{ json: { valid: true, request_id: requestId, action, user_message: message, session_id: body.session_id || body.sessionId, metadata: body.metadata || {} } }];"
+      },
+      "id": "validate",
+      "name": "Input Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.valid }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-valid",
+      "name": "Valid Request?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, status: 'failed', action: $json.action, message: $json.message || 'Invalid automation payload', error: $json.error || { type: 'BAD_REQUEST', retryable: false }, execution_id: $executionId } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "respond-invalid",
+      "name": "Respond Invalid",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 480]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, status: 'completed', action: $json.action, message: 'AetherPulse orchestration accepted the event.', output: $json.user_message ? ('Received: ' + $json.user_message) : 'ok', data: { request_id: $json.request_id }, execution_id: $executionId } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-ok",
+      "name": "Respond JSON",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 200]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Input Validation", "type": "main", "index": 0 }]]
+    },
+    "Input Validation": {
+      "main": [[{ "node": "Valid Request?", "type": "main", "index": 0 }]]
+    },
+    "Valid Request?": {
+      "main": [
+        [{ "node": "Respond JSON", "type": "main", "index": 0 }],
+        [{ "node": "Respond Invalid", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Floor, FacilityRoom } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Floor, FacilityRoom, PatientRecord } from '../types';
 import { INITIAL_FLOORS } from '../data/facilityData';
 import { FloorNavigator } from '../components/facility/FloorNavigator';
 import { SearchFilterBar } from '../components/facility/SearchFilterBar';
@@ -12,10 +12,40 @@ import { Map, LayoutGrid, Columns, Radio, ShieldCheck, Activity, Send } from 'lu
 interface LiveRoomNavigatorProps {
   onAddAuditLog?: (action: string, category: 'SYSTEM' | 'PATIENT' | 'HARDWARE' | 'DISPATCH', room?: string) => void;
   onOpenInspectorView?: (roomId: string) => void;
+  patients?: PatientRecord[];
+}
+
+function patientToRoom(patient: PatientRecord, floorId: string): FacilityRoom {
+  return {
+    id: patient.id,
+    floorId,
+    roomNumber: patient.roomNumber,
+    bedNumber: patient.bedNumber,
+    patient: {
+      name: patient.name,
+      age: patient.age,
+      gender: patient.gender,
+      mrn: patient.mrn,
+      diagnosis: patient.diagnosis,
+      physician: patient.physician,
+      admissionDate: patient.admissionDate,
+    },
+    status: patient.status,
+    enteredStateAt: Date.now(),
+    position: { x: 80, y: 340, width: 130, height: 110 },
+    movement: patient.postureDescription,
+    confidence: 90,
+    edgeNode: `EDGE-${patient.roomNumber}`,
+    fallRiskScore: patient.fallRiskScore,
+    heartRate: patient.heartRate,
+    respirationRate: patient.respirationRate,
+    lastEvent: 'Admitted by AetherPulse AI',
+  };
 }
 
 export const LiveRoomNavigator: React.FC<LiveRoomNavigatorProps> = ({ 
   onAddAuditLog,
+  patients,
 }) => {
   const [floors, setFloors] = useState<Floor[]>(INITIAL_FLOORS);
   const [activeFloorId, setActiveFloorId] = useState<string>('ward-4b'); // Default to Ward 4B (Acute Neuro)
@@ -32,6 +62,42 @@ export const LiveRoomNavigator: React.FC<LiveRoomNavigatorProps> = ({
   // Modal & Drawer State
   const [dispatchRoom, setDispatchRoom] = useState<FacilityRoom | null>(null);
   const [isInspectorOpen, setIsInspectorOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!patients?.length) return;
+    setFloors((prevFloors) =>
+      prevFloors.map((floor) => {
+        const rooms = [...floor.rooms];
+        for (const patient of patients) {
+          const index = rooms.findIndex((room) => room.id === patient.id || room.roomNumber === patient.roomNumber);
+          if (index >= 0) {
+            rooms[index] = {
+              ...rooms[index],
+              status: patient.status,
+              bedNumber: patient.bedNumber,
+              fallRiskScore: patient.fallRiskScore,
+              heartRate: patient.heartRate,
+              respirationRate: patient.respirationRate,
+              movement: patient.postureDescription,
+              patient: {
+                ...rooms[index].patient,
+                name: patient.name,
+                age: patient.age,
+                gender: patient.gender,
+                mrn: patient.mrn,
+                diagnosis: patient.diagnosis,
+                physician: patient.physician,
+                admissionDate: patient.admissionDate,
+              },
+            };
+          } else {
+            rooms.push(patientToRoom(patient, floor.id));
+          }
+        }
+        return { ...floor, rooms, roomCount: rooms.length };
+      }),
+    );
+  }, [patients]);
 
   // Active Floor reference
   const activeFloor = useMemo(() => {
